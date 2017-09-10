@@ -6,14 +6,15 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-sp", help="port", type=int)
 args = parser.parse_args()
-print(args.sp)
 
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 
 serverSocket.bind(('', args.sp))
+print("Server Initialized...")
 
 while True:
 	message, address = serverSocket.recvfrom(1024)
-	serverSocket.sendto(message, address)
+	if message == "list":
+		serverSocket.sendto("Signed in Users: ", address)
 
 

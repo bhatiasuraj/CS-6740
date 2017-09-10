@@ -9,13 +9,14 @@ parser.add_argument("-sip", help="server-ip")
 parser.add_argument("-sp", help="port", type=int)
 args = parser.parse_args()
 
-
-clientSocket = socket(AF_INET, SOCK_DGRAM)
-message = 'Hello!'
 addr = (args.sip, args.sp)
 
-clientSocket.sendto(message, addr)
+clientSocket = socket(AF_INET, SOCK_DGRAM)
+message = raw_input("+>")
+if message == "list":
+	clientSocket.sendto("list", addr)
+        data, server = clientSocket.recvfrom(1024)
+	print ("<-", data)
 
-data, server = clientSocket.recvfrom(1024)
-print(data)
+clientSocket.sendto(message, addr)
 
