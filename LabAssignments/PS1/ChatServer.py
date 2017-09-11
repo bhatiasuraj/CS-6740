@@ -3,27 +3,33 @@
 from socket import *
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-sp", help="port", type=int)
-args = parser.parse_args()
+def signIn(s, u):
+	username, addr = s.recvfrom(1024)
+	u[username] = addr
+	userList = ', '.join(u.iterkeys())
+	return userList
 
-serverSocket = socket(AF_INET, SOCK_DGRAM)
+def main():
 
-serverSocket.bind(('', args.sp))
-print("Server Initialized...")
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-sp", help="port", type=int)
+	args = parser.parse_args()
 
-#userList = []
-#username, address = serverSocket.recvfrom(1024)
-#userList.join((username))
+	serverSocket = socket(AF_INET, SOCK_DGRAM)
 
-while True:
-	message, address = serverSocket.recvfrom(1024)
-	print message
+	serverSocket.bind(('', args.sp))
+	print("Server Initialized...")
+	userList = {}
 
-	if message == "SIGN-IN":
-		username, address = serverSocket.recvfrom(1024)
+	while True:
+		message, address = serverSocket.recvfrom(1024)
 
-	if message == "list":
-		serverSocket.sendto("Signed in Users: "+username, address)
+		if message == "SIGN-IN":
+			u = signIn(serverSocket, userList)
 
+		if message == "list":
+			serverSocket.sendto("Signed in Users: "+str(u), address)
+
+if __name__ == "__main__":
+    main()
 

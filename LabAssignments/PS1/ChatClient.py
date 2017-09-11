@@ -2,12 +2,12 @@
 
 from socket import *
 import argparse
+import sys
 
 def userSignIn(username, addr, s):
 
 	s.sendto("SIGN-IN", addr)
 	s.sendto(username, addr)
-
 
 def createSocket():
 
@@ -41,6 +41,9 @@ def main():
 	        message = raw_input("+>")
 	        if message == "list":
 			userList(addr, s)
+		if message == "exit":
+			s.close()
+			sys.exit(0)
 
 if __name__ == "__main__":
     main()
