@@ -14,6 +14,11 @@ def createSocket():
         clientSocket = socket(AF_INET, SOCK_DGRAM)
 	return clientSocket
 
+def sendMessage(message, socket, addr):
+	
+	socket.sendto(message, addr)	
+	
+
 def userList(addr, s):
 
 	s.sendto("list", addr)
@@ -41,6 +46,8 @@ def main():
 	        message = raw_input("+>")
 	        if message == "list":
 			userList(addr, s)
+		if message.split()[0] == "send":
+			sendMessage(message, s, addr)
 		if message == "exit":
 			s.close()
 			sys.exit(0)

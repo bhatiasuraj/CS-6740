@@ -9,6 +9,11 @@ def signIn(s, u):
 	userList = ', '.join(u.iterkeys())
 	return userList
 
+def sendMessage(s, u, m):
+	receiver = m.split()[1]
+	print receiver
+
+
 def main():
 
 	parser = argparse.ArgumentParser()
@@ -29,6 +34,9 @@ def main():
 
 		if message == "list":
 			serverSocket.sendto("Signed in Users: "+str(u), address)
+	
+		if message.split()[0] == "send":
+			sendMessage(serverSocket, u, message)
 
 if __name__ == "__main__":
     main()
