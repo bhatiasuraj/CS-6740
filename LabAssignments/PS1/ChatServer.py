@@ -10,12 +10,19 @@ def signIn(s, u):
 	userList = ', '.join(u.iterkeys())
 	return userList, u
 
-def sendMessage(s, u, m):
-	receiver = m.split()[1]
-	for key, value in u.items():
-		if key == receiver:
-			s.sendto(m, value)
+def sendMessage(socket, userDict, message, address):
 
+	#Extracting sender name
+	for key, value in userDict.items():
+		if value == address:
+			sender = key
+	# Extracting receiver name 
+	receiver = message.split()[1]
+	# Extracting actual message to be sent 
+	m = (' '.join(message.split(' ')[2:]))
+	for key, value in userDict.items():
+		if key == receiver:
+			socket.sendto(str(" <From "+str(value[0])+":"+str(value[1])+":"+sender+"> "+m), value)
 
 def main():
 
@@ -39,7 +46,7 @@ def main():
 			serverSocket.sendto("Signed in Users: "+str(userString), address)
 	
 		if message.split()[0] == "send":
-			sendMessage(serverSocket, userDict, message)
+			sendMessage(serverSocket, userDict, message, address)
 
 if __name__ == "__main__":
     main()

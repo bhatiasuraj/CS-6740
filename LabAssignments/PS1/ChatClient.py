@@ -36,13 +36,16 @@ def main():
         sendToServer("SIGN-IN", clientSocket, username, addr)
 	while True:
 	        message = raw_input("+>")
-	        if message == "list":
-			sendToServer(message, clientSocket, username, addr)
-		if message.split()[0] == "send":
-			sendToServer(message, clientSocket, username, addr)
 		if message == "exit":
 			clientSocket.close()
 			sys.exit(0)
+		else:
+			sendToServer(message, clientSocket, username, addr)
+		data = sock.recv(1024)
+		if data:
+			print "\n<- "+data
+
+
 
 if __name__ == "__main__":
     main()
