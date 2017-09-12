@@ -7,11 +7,13 @@ def signIn(s, u):
 	username, addr = s.recvfrom(1024)
 	u[username] = addr
 	userList = ', '.join(u.iterkeys())
-	return userList
+	return userList, u
 
 def sendMessage(s, u, m):
 	receiver = m.split()[1]
-	print receiver
+	for key, value in u.items():
+		if key == receiver:
+			print "Receiver is "+receiver
 
 
 def main():
@@ -30,13 +32,13 @@ def main():
 		message, address = serverSocket.recvfrom(1024)
 
 		if message == "SIGN-IN":
-			u = signIn(serverSocket, userList)
+			userString, userDict = signIn(serverSocket, userList)
 
 		if message == "list":
-			serverSocket.sendto("Signed in Users: "+str(u), address)
+			serverSocket.sendto("Signed in Users: "+str(userString), address)
 	
 		if message.split()[0] == "send":
-			sendMessage(serverSocket, u, message)
+			sendMessage(serverSocket, userDict, message)
 
 if __name__ == "__main__":
     main()
