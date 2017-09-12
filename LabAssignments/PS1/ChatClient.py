@@ -4,26 +4,18 @@ from socket import *
 import argparse
 import sys
 
-def userSignIn(username, addr, s):
+def sendToServer(message, socket, username, addr):
+	if message == "SIGN-IN":
+		socket.sendto("SIGN-IN", addr)
+		socket.sendto(username, addr)		
 
-	s.sendto("SIGN-IN", addr)
-	s.sendto(username, addr)
+	if message.split()[0] == "send":
+		socket.sendto(message, addr)
 
-def createSocket():
-
-        clientSocket = socket(AF_INET, SOCK_DGRAM)
-	return clientSocket
-
-def sendMessage(message, socket, addr):
-	
-	socket.sendto(message, addr)	
-	
-
-def userList(addr, s):
-
-	s.sendto("list", addr)
-	data, server = s.recvfrom(1024)
-	print str("<-"+data)
+	if message == "list":
+		socket.sendto("list", addr)
+		data, server = socket.recvfrom(1024)
+		print str("<-"+data)
 
 def argsParser():
 
@@ -40,17 +32,18 @@ def main():
 
 	username, port, ip = argsParser()
 	addr = (ip, port)
-	s = createSocket()
-        userSignIn(username, addr, s)
+	clientSocket = socket(AF_INET, SOCK_DGRAM)
+        sendToServer("SIGN-IN", clientSocket, username, addr)
 	while True:
 	        message = raw_input("+>")
 	        if message == "list":
-			userList(addr, s)
+			sendToServer(message, clientSocket, username, addr)
 		if message.split()[0] == "send":
-			sendMessage(message, s, addr)
+			sendToServer(message, clientSocket, username, addr)
 		if message == "exit":
-			s.close()
+			clientSocket.close()
 			sys.exit(0)
 
 if __name__ == "__main__":
     main()
+

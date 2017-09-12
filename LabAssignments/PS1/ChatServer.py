@@ -5,6 +5,7 @@ import argparse
 
 def signIn(s, u):
 	username, addr = s.recvfrom(1024)
+	# check for condition of duplicate user
 	u[username] = addr
 	userList = ', '.join(u.iterkeys())
 	return userList, u
@@ -13,7 +14,7 @@ def sendMessage(s, u, m):
 	receiver = m.split()[1]
 	for key, value in u.items():
 		if key == receiver:
-			print "Receiver is "+receiver
+			s.sendto(m, value)
 
 
 def main():
