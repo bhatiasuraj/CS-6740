@@ -7,7 +7,7 @@ import sys
 import select
 
 def prompt():
-	sys.stdout.write('+>')
+	sys.stdout.write('+> ')
 	sys.stdout.flush()
 
 def sendToServer(message, socket, username, addr):
@@ -56,7 +56,7 @@ def main():
 	username, port, ip = argsParser()
 	addr = (ip, port)
 	clientSocket = createSocket()	
-	clientSocket.settimeout(5)
+	#clientSocket.settimeout(5)
 	sendToServer("SIGN-IN", clientSocket, username, addr)
 	prompt()
 	while True:
@@ -80,6 +80,9 @@ def main():
 					sendToServer(message, clientSocket, username, addr)
 					clientSocket.close()
 					sys.exit(0)
+
+				if message =="":
+					prompt()
 				else:
 					sendToServer(message, clientSocket, username, addr)
 					prompt()
