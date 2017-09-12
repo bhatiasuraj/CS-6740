@@ -26,15 +26,7 @@ def sendToServer(message, socket, username, addr):
 	if message == "exit":
 		socket.sendto(message, addr)
 		
-def recvFromServer(clientSocket):
 
-	clientSocket.setblocking(0)
-	ready = select.select([clientSocket], [], [], 1)
-	if ready[0]:	
-		data = clientSocket.recv(1024)
-		if data:
-			print "<- "+data
-	
 def createSocket():
 	clientSocket = socket(AF_INET, SOCK_DGRAM)
 	#clientSocket.bind((ip, port))
@@ -56,7 +48,7 @@ def main():
 	username, port, ip = argsParser()
 	addr = (ip, port)
 	clientSocket = createSocket()	
-	#clientSocket.settimeout(5)
+
 	sendToServer("SIGN-IN", clientSocket, username, addr)
 	prompt()
 	while True:
@@ -71,7 +63,15 @@ def main():
 				if not data:
 					sys.exit()
 				else:
-					sys.stdout.write('\n<- '+data+'\n')
+					if data.split()[0] == "Send":
+						receiverIp = data.split()[1]
+						receiverPort = int(data.split()[2])
+						receiver = (receiverIp, receiverPort)
+						clientSocket.sendto(str(" <From "+str(ip)+":"+str(port)+":"+username+">: "+str(message.split()[2:])), receiver)
+					
+					else:
+						sys.stdout.write('\n<- '+data+'\n')
+					
 					prompt()
 			else:
 				message = raw_input()
@@ -81,8 +81,14 @@ def main():
 					clientSocket.close()
 					sys.exit(0)
 
-				if message =="":
+				elif message =="":
 					prompt()
+
+		
+				elif message.split()[0] == "send":
+					sendToServer(message, clientSocket, username, addr)
+					
+					
 				else:
 					sendToServer(message, clientSocket, username, addr)
 					prompt()
@@ -91,4 +97,16 @@ def main():
 		
 if __name__ == "__main__":
     main()
+
+
+'''def recvFromServer(clientSocket):
+
+	clientSocket.setblocking(0)
+	ready = select.select([clientSocket], [], [], 1)
+	if ready[0]:	
+		data = clientSocket.recv(1024)
+		if data:
+			print "<- "+data
+
+'''
 

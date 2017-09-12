@@ -31,8 +31,8 @@ def sendMessage(socket, userDict, message, address):
 	m = (' '.join(message.split(' ')[2:]))
 	for key, value in userDict.items():
 		if key == receiver:
-			socket.sendto(str(" <From "+str(value[0])+":"+str(value[1])+":"+sender+">: "+m), value)
-
+			socket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
+			
 def main():
 
 	parser = argparse.ArgumentParser()
