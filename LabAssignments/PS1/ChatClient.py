@@ -6,6 +6,10 @@ import argparse
 import sys
 import select
 
+def prompt():
+	sys.stdout.write('+>')
+	sys.stdout.flush()
+
 def sendToServer(message, socket, username, addr):
 	if message == "SIGN-IN":
 		socket.sendto("SIGN-IN", addr)
@@ -19,16 +23,18 @@ def sendToServer(message, socket, username, addr):
 		data, server = socket.recvfrom(1024)
 		print str("<-"+data)
 
+	if message == "exit":
+		socket.sendto(message, addr)
+		
 def recvFromServer(clientSocket):
-	try:
-		#clientSocket.settimeout(1)
+
+	clientSocket.setblocking(0)
+	ready = select.select([clientSocket], [], [], 1)
+	if ready[0]:	
 		data = clientSocket.recv(1024)
 		if data:
 			print "<- "+data
-	except timeout:
-		return
-
-
+	
 def createSocket():
 	clientSocket = socket(AF_INET, SOCK_DGRAM)
 	#clientSocket.bind((ip, port))
@@ -49,19 +55,34 @@ def main():
 
 	username, port, ip = argsParser()
 	addr = (ip, port)
-	clientSocket = createSocket()
+	clientSocket = createSocket()	
+	clientSocket.settimeout(5)
 	sendToServer("SIGN-IN", clientSocket, username, addr)
+	prompt()
 	while True:
+		socketList = [sys.stdin, clientSocket]
+		readSocket, writeSocket, errorSocket = select.select(socketList, [], [])
+		for sock in readSocket:
+			if sock == clientSocket:
+				try:
+					data = clientSocket.recv(1024)
+				except:
+					break
+				if not data:
+					sys.exit()
+				else:
+					sys.stdout.write('\n<- '+data+'\n')
+					prompt()
+			else:
+				message = raw_input()
 
-		message = raw_input("+>")
-		if message == "exit":
-			clientSocket.close()
-			sys.exit(0)
-		else:
-			sendToServer(message, clientSocket, username, addr)
-
-		recvFromServer(clientSocket)
-
+				if message == "exit":
+					sendToServer(message, clientSocket, username, addr)
+					clientSocket.close()
+					sys.exit(0)
+				else:
+					sendToServer(message, clientSocket, username, addr)
+					prompt()
 
 
 		

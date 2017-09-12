@@ -3,12 +3,22 @@
 from socket import *
 import argparse
 
-def signIn(s, u):
-	username, addr = s.recvfrom(1024)
+def signIn(s, u, message, address):
+	
+	if message == "SIGN-IN":
+		username, addr = s.recvfrom(1024)
 	# check for condition of duplicate user
-	u[username] = addr
+		u[username] = addr
+	
+	if message == "exit":
+		for key, value in u.items():
+			if value == address:
+				del u[key]
+				print u	
+	
 	userList = ', '.join(u.iterkeys())
 	return userList, u
+		
 
 def sendMessage(socket, userDict, message, address):
 
@@ -40,13 +50,17 @@ def main():
 		message, address = serverSocket.recvfrom(1024)
 
 		if message == "SIGN-IN":
-			userString, userDict = signIn(serverSocket, userList)
+			userString, userDict = signIn(serverSocket, userList, message, address)
 
 		if message == "list":
 			serverSocket.sendto("Signed in Users: "+str(userString), address)
 	
 		if message.split()[0] == "send":
 			sendMessage(serverSocket, userDict, message, address)
+		
+		if message == "exit":
+			userString, userDict = signIn(serverSocket, userList, message, address)
+			
 
 if __name__ == "__main__":
     main()
