@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
 from socket import *
+import threading
 import argparse
 import sys
+import select
 
 def sendToServer(message, socket, username, addr):
 	if message == "SIGN-IN":
@@ -16,6 +18,21 @@ def sendToServer(message, socket, username, addr):
 		socket.sendto("list", addr)
 		data, server = socket.recvfrom(1024)
 		print str("<-"+data)
+
+def recvFromServer(clientSocket):
+	try:
+		#clientSocket.settimeout(1)
+		data = clientSocket.recv(1024)
+		if data:
+			print "<- "+data
+	except timeout:
+		return
+
+
+def createSocket():
+	clientSocket = socket(AF_INET, SOCK_DGRAM)
+	#clientSocket.bind((ip, port))
+	return clientSocket
 
 def argsParser():
 
@@ -32,21 +49,22 @@ def main():
 
 	username, port, ip = argsParser()
 	addr = (ip, port)
-	clientSocket = socket(AF_INET, SOCK_DGRAM)
-        sendToServer("SIGN-IN", clientSocket, username, addr)
+	clientSocket = createSocket()
+	sendToServer("SIGN-IN", clientSocket, username, addr)
 	while True:
-	        message = raw_input("+>")
+
+		message = raw_input("+>")
 		if message == "exit":
 			clientSocket.close()
 			sys.exit(0)
 		else:
 			sendToServer(message, clientSocket, username, addr)
-		data = sock.recv(1024)
-		if data:
-			print "\n<- "+data
+
+		recvFromServer(clientSocket)
 
 
 
+		
 if __name__ == "__main__":
     main()
 
