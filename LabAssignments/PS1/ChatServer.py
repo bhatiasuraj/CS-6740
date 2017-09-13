@@ -45,13 +45,16 @@ def sendMessage(socket, userDict, message, address):
 
 	# Check for user not logged into chat	
 	socket.sendto("No such user logged in, try again.", address)
-			
-def main():
+
+def argsParser():
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-sp", help="port", type=int)
 	args = parser.parse_args()
-	
+
+	return args.sp
+
+def createSocket(serverPort):
 	try:
 		serverSocket = socket(AF_INET, SOCK_DGRAM)
 	except socket.error, createError:
@@ -59,30 +62,43 @@ def main():
 		sys.exit(0)
 
 	try:
-		serverSocket.bind(('', args.sp))
+		serverSocket.bind(('', serverPort))
 		print("Server Initialized...")
 	except socket.error, bindError:
 		print "Failed to bind socket. Error: "+str(bindError) 
+	
+	return serverSocket
+			
+def main():
+
+
+	serverPort = argsParser()
+	
+	serverSocket = createSocket(serverPort)
 		
 	userList = {}
 
-	while True:
-		message, address = serverSocket.recvfrom(1024)
+	try:
+		while True:
+			message, address = serverSocket.recvfrom(1024)
 
-		if message == "SIGN-IN":
-			userString, userDict = signIn(serverSocket, userList, message, address)
+			if message == "SIGN-IN":
+				userString, userDict = signIn(serverSocket, userList, message, address)
 
-		if message == "list":
-			serverSocket.sendto(" Signed in Users: "+str(userString), address)
+			if message == "list":
+				serverSocket.sendto(" Signed in Users: "+str(userString), address)
 	
-		if message.split()[0] == "send":
-			sendMessage(serverSocket, userDict, message, address)
+			if message.split()[0] == "send":
+				sendMessage(serverSocket, userDict, message, address)
 		
-		if message == "exit":
-			userString, userDict = signIn(serverSocket, userList, message, address)
+			if message == "exit":
+				userString, userDict = signIn(serverSocket, userList, message, address)
 
-	serverSocket.close()
-			
+		serverSocket.close()
+
+	except KeyboardInterrupt:
+		for key, value in userDict.items():
+			serverSocket.sendto("Server Down.", value)		
 
 if __name__ == "__main__":
     main()

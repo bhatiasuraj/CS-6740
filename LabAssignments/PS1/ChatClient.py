@@ -89,7 +89,11 @@ def main():
 						receiver = (receiverIp, receiverPort)
 						m = (' '.join(message.split(' ')[2:]))
 						clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+str(m)), receiver)
-					
+
+					elif data == "Server Down.":
+						print "\n+> Server disconnected, try again later"
+						sys.exit()
+											
 					else:
 						sys.stdout.write('\n<- '+data+'\n')
 					
