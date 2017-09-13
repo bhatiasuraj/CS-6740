@@ -7,7 +7,8 @@ def signIn(s, u, message, address):
 	
 	if message == "SIGN-IN":
 		username, addr = s.recvfrom(1024)
-	# check for condition of duplicate user
+	
+	# Check for duplicate user
 		u[username] = addr
 	
 	if message == "exit":
@@ -21,17 +22,23 @@ def signIn(s, u, message, address):
 
 def sendMessage(socket, userDict, message, address):
 
-	#Extracting sender name
+	# Extracting sender name
 	for key, value in userDict.items():
 		if value == address:
 			sender = key
+
 	# Extracting receiver name 
 	receiver = message.split()[1]
-	# Extracting actual message to be sent 
+
+	# Extracting actual message to be sent
 	m = (' '.join(message.split(' ')[2:]))
 	for key, value in userDict.items():
 		if key == receiver:
 			socket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
+			return
+
+	# Check for user not logged into chat	
+	socket.sendto("No such user logged in, try again.", address)
 			
 def main():
 

@@ -98,16 +98,3 @@ def main():
 		
 if __name__ == "__main__":
     main()
-
-
-'''def recvFromServer(clientSocket):
-
-	clientSocket.setblocking(0)
-	ready = select.select([clientSocket], [], [], 1)
-	if ready[0]:	
-		data = clientSocket.recv(1024)
-		if data:
-			print "<- "+data
-
-'''
-
