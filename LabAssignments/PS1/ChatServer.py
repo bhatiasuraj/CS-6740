@@ -4,20 +4,24 @@ from socket import *
 import argparse
 import sys
 
-def signIn(s, u, message, address):
+def signIn(serverSocket, u, message, address):
 	
 	if message == "SIGN-IN":
-		username, addr = s.recvfrom(1024)
+		username, addr = serverSocket.recvfrom(1024)
 	
 	# Check for duplicate user
-		u[username] = addr
-	
+		if username not in u:
+			u[username] = addr
+		else:
+			serverSocket.sendto("User "+username+" already exists", address)
+
 	if message == "exit":
 		for key, value in u.items():
 			if value == address:
 				del u[key]
 
 	userList = ', '.join(u.iterkeys())
+
 	return userList, u
 		
 
@@ -55,8 +59,10 @@ def argsParser():
 	return args.sp
 
 def createSocket(serverPort):
+
 	try:
 		serverSocket = socket(AF_INET, SOCK_DGRAM)
+
 	except socket.error, createError:
 		print "Failed to create socket. Error: "+str(creatError) 
 		sys.exit(0)
@@ -64,6 +70,7 @@ def createSocket(serverPort):
 	try:
 		serverSocket.bind(('', serverPort))
 		print("Server Initialized...")
+
 	except socket.error, bindError:
 		print "Failed to bind socket. Error: "+str(bindError) 
 	
