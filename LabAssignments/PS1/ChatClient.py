@@ -1,3 +1,11 @@
+'''
+
+Client program 
+
+'''
+
+
+
 #!/usr/bin/python
 
 from socket import *
@@ -32,7 +40,7 @@ def sendToServer(message, socket, username, addr):
 	if message == "list":
 		try :
 			socket.sendto("list", addr)
-			data, server = socket.recvfrom(1024)
+			data, server = socket.recvfrom(65565)
 			print str("<-"+data)
 
 		except socket.error, msg:
@@ -90,7 +98,7 @@ def main():
 		for sock in readSocket:
 			if sock == clientSocket:
 				try:
-					data = clientSocket.recv(1024)
+					data = clientSocket.recv(65565)
 
 				except:
 					break

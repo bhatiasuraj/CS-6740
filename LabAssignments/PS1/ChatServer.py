@@ -1,3 +1,9 @@
+'''
+
+Server program 
+
+'''
+
 #!/usr/bin/python
 
 from socket import *
@@ -6,8 +12,9 @@ import sys
 
 def signIn(serverSocket, u, message, address):
 	
+	# Receieve username after sign-in
 	if message == "SIGN-IN":
-		username, addr = serverSocket.recvfrom(1024)
+		username, addr = serverSocket.recvfrom(65565)
 	
 	# Check for duplicate user
 		if username not in u:
@@ -15,6 +22,7 @@ def signIn(serverSocket, u, message, address):
 		else:
 			serverSocket.sendto("User "+username+" already exists", address)
 
+	# Handle user exit
 	if message == "exit":
 		for key, value in u.items():
 			if value == address:
@@ -25,7 +33,7 @@ def signIn(serverSocket, u, message, address):
 	return userList, u
 		
 
-def sendMessage(socket, userDict, message, address):
+def sendMessage(serverSocket, userDict, message, address):
 
 	# Extracting sender name
 	for key, value in userDict.items():
@@ -36,7 +44,7 @@ def sendMessage(socket, userDict, message, address):
 	try:	 
 		receiver = message.split()[1]
 	except IndexError:
-		socket.sendto("Please specify receiver!", address)
+		serverSocket.sendto("Please specify receiver!", address)
 		return
 
 	# Extracting actual message to be sent
@@ -44,11 +52,11 @@ def sendMessage(socket, userDict, message, address):
 
 	for key, value in userDict.items():
 		if key == receiver:
-			socket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
+			serverSocket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
 			return
 
 	# Check for user not logged into chat	
-	socket.sendto("No such user logged in, try again.", address)
+	serverSocket.sendto("No such user logged in, try again.", address)
 
 def argsParser():
 
@@ -87,7 +95,7 @@ def main():
 
 	try:
 		while True:
-			message, address = serverSocket.recvfrom(1024)
+			message, address = serverSocket.recvfrom(65565)
 
 			if message == "SIGN-IN":
 				userString, userDict = signIn(serverSocket, userList, message, address)
