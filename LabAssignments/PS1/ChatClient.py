@@ -67,7 +67,8 @@ def main():
 						receiverIp = data.split()[1]
 						receiverPort = int(data.split()[2])
 						receiver = (receiverIp, receiverPort)
-						clientSocket.sendto(str(" <From "+str(ip)+":"+str(port)+":"+username+">: "+str(message.split()[2:])), receiver)
+						m = (' '.join(message.split(' ')[2:]))
+						clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+str(m)), receiver)
 					
 					else:
 						sys.stdout.write('\n<- '+data+'\n')
