@@ -12,24 +12,43 @@ def prompt():
 
 def sendToServer(message, socket, username, addr):
 	if message == "SIGN-IN":
-		socket.sendto("SIGN-IN", addr)
-		socket.sendto(username, addr)		
+		try :
+			socket.sendto("SIGN-IN", addr)
+			socket.sendto(username, addr)
+		except socket.error, msg:
+        		print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+        		sys.exit()		
 
 	if message.split()[0] == "send":
-		socket.sendto(message, addr)
+		try :		
+			socket.sendto(message, addr)
+		except socket.error, msg:
+        		print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+        		sys.exit()
 
 	if message == "list":
-		socket.sendto("list", addr)
-		data, server = socket.recvfrom(1024)
-		print str("<-"+data)
+		try :
+			socket.sendto("list", addr)
+			data, server = socket.recvfrom(1024)
+			print str("<-"+data)
+		except socket.error, msg:
+        		print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+        		sys.exit()
 
 	if message == "exit":
-		socket.sendto(message, addr)
-		
+		try :		
+			socket.sendto(message, addr)
+		except socket.error, msg:
+        		print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+        		sys.exit()		
 
-def createSocket():
-	clientSocket = socket(AF_INET, SOCK_DGRAM)
-	#clientSocket.bind((ip, port))
+def createSocket(ip, port):
+	try:
+		clientSocket = socket(AF_INET, SOCK_DGRAM)
+	except socket.error:
+    		print 'Failed to create socket'
+    		sys.exit(0)
+	
 	return clientSocket
 
 def argsParser():
@@ -39,6 +58,7 @@ def argsParser():
         parser.add_argument("-u", help="USERNAME")
         parser.add_argument("-sip", help="server-ip")
         parser.add_argument("-sp", help="port", type=int)
+
 	args = parser.parse_args()
 
 	return args.u, args.sp, args.sip
@@ -47,7 +67,7 @@ def main():
 
 	username, port, ip = argsParser()
 	addr = (ip, port)
-	clientSocket = createSocket()	
+	clientSocket = createSocket(ip, port)	
 
 	sendToServer("SIGN-IN", clientSocket, username, addr)
 	prompt()
@@ -85,13 +105,18 @@ def main():
 				elif message =="":
 					prompt()
 
-		
+				# Check for message format
 				elif message.split()[0] == "send":
+					try:
+						sendToServer(message, clientSocket, username, addr)
+					except IndexError:
+						print "+> Incorrect send format, try again"
+						prompt()
+				elif message == "list":
 					sendToServer(message, clientSocket, username, addr)
-					
-					
+					prompt()
 				else:
-					sendToServer(message, clientSocket, username, addr)
+					print "+> Command not supported"
 					prompt()
 
 

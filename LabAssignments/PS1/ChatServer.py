@@ -2,6 +2,7 @@
 
 from socket import *
 import argparse
+import sys
 
 def signIn(s, u, message, address):
 	
@@ -27,11 +28,16 @@ def sendMessage(socket, userDict, message, address):
 		if value == address:
 			sender = key
 
-	# Extracting receiver name 
-	receiver = message.split()[1]
+	# Extracting receiver name
+	try:	 
+		receiver = message.split()[1]
+	except IndexError:
+		socket.sendto("Please specify receiver!", address)
+		return
 
 	# Extracting actual message to be sent
-	m = (' '.join(message.split(' ')[2:]))
+		m = (' '.join(message.split(' ')[2:]))
+
 	for key, value in userDict.items():
 		if key == receiver:
 			socket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
@@ -45,11 +51,19 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-sp", help="port", type=int)
 	args = parser.parse_args()
+	
+	try:
+		serverSocket = socket(AF_INET, SOCK_DGRAM)
+	except socket.error, createError:
+		print "Failed to create socket. Error: "+str(creatError) 
+		sys.exit(0)
 
-	serverSocket = socket(AF_INET, SOCK_DGRAM)
-
-	serverSocket.bind(('', args.sp))
-	print("Server Initialized...")
+	try:
+		serverSocket.bind(('', args.sp))
+		print("Server Initialized...")
+	except socket.error, bindError:
+		print "Failed to bind socket. Error: "+str(bindError) 
+		
 	userList = {}
 
 	while True:
@@ -66,6 +80,8 @@ def main():
 		
 		if message == "exit":
 			userString, userDict = signIn(serverSocket, userList, message, address)
+
+	serverSocket.close()
 			
 
 if __name__ == "__main__":
