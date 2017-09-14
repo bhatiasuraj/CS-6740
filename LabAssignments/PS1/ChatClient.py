@@ -24,10 +24,10 @@ def prompt():
 
 def sendToServer(message, socket, username, addr):
 
+	# User SIGN-IN and send USERNAME to server
 	if message == "SIGN-IN":
 		try :
-			socket.sendto("SIGN-IN", addr)
-			socket.sendto(username, addr)
+			socket.sendto("SIGN-IN "+username, addr)
 
 		except error, msg:
         		print 'Error Code : ' + str(msg)
@@ -76,9 +76,9 @@ def argsParser():
 
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("-u", help="USERNAME")
-        parser.add_argument("-sip", help="server-ip")
-        parser.add_argument("-sp", help="port", type=int)
+        parser.add_argument("-u", help="USERNAME", required=True)
+        parser.add_argument("-sip", help="server-ip", required=True)
+        parser.add_argument("-sp", help="port", type=int, required=True)
 
 	args = parser.parse_args()
 
@@ -121,7 +121,6 @@ def main():
 							receiver = (receiverIp, receiverPort)
 							try:							
 								m = message.split()[2]
-								
 								m = (' '.join(message.split(' ')[2:]))
 
 								if len(str(m)) <= 65494:

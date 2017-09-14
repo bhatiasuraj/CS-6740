@@ -19,12 +19,12 @@ import sys
 def signIn(serverSocket, u, message, address):
 	
 	# Receieve username after sign-in
-	if message == "SIGN-IN":
-		username, addr = serverSocket.recvfrom(65535)
+	if message.split()[0] == "SIGN-IN":
+		username = message.split()[1]
 	
-	# Check for duplicate user
+	# Check for duplicate user, add new USER to database
 		if username not in u:
-			u[username] = addr
+			u[username] = address
 		else:
 			serverSocket.sendto("User "+username+" already exists", address)
 
@@ -46,7 +46,7 @@ def sendMessage(serverSocket, userDict, message, address):
 		if value == address:
 			sender = key
 
-	# Extracting receiver name
+	# Extracting receiver name, handling error for no RECEIVER given
 	try:	 
 		receiver = message.split()[1]
 	except IndexError:
@@ -56,6 +56,7 @@ def sendMessage(serverSocket, userDict, message, address):
 	# Extracting actual message to be sent
 		m = (' '.join(message.split(' ')[2:]))
 
+	# Send receiever information to sender
 	for key, value in userDict.items():
 		if key == receiver:
 			serverSocket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
@@ -67,7 +68,7 @@ def sendMessage(serverSocket, userDict, message, address):
 def argsParser():
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument("-sp", help="port", type=int)
+	parser.add_argument("-sp", help="port", required=True, type=int)
 	args = parser.parse_args()
 
 	return args.sp
@@ -103,11 +104,10 @@ def main():
 		while True:
 			message, address = serverSocket.recvfrom(65535)
 
-			if message == "SIGN-IN":
+			if message.split()[0] == "SIGN-IN":
 				userString, userDict = signIn(serverSocket, userList, message, address)
 
 			if message == "list":
-				#print len(message)
 				serverSocket.sendto(" Signed in Users: "+str(userString), address)
 	
 			if message.split()[0] == "send":
