@@ -1,6 +1,12 @@
 '''
 
-Server program 
+Author: Suraj Bhatia
+
+Title: ChatServer.py
+
+Description: Server side program for instant chat using UDP sockets in Python
+
+Usage: python ChatServer.py -sp server-port 
 
 '''
 
@@ -14,7 +20,7 @@ def signIn(serverSocket, u, message, address):
 	
 	# Receieve username after sign-in
 	if message == "SIGN-IN":
-		username, addr = serverSocket.recvfrom(65565)
+		username, addr = serverSocket.recvfrom(65535)
 	
 	# Check for duplicate user
 		if username not in u:
@@ -95,12 +101,13 @@ def main():
 
 	try:
 		while True:
-			message, address = serverSocket.recvfrom(65565)
+			message, address = serverSocket.recvfrom(65535)
 
 			if message == "SIGN-IN":
 				userString, userDict = signIn(serverSocket, userList, message, address)
 
 			if message == "list":
+				#print len(message)
 				serverSocket.sendto(" Signed in Users: "+str(userString), address)
 	
 			if message.split()[0] == "send":
