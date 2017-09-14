@@ -143,7 +143,7 @@ def main():
 
 							# Do not send empty messages
 							except IndexError:
-								print "<- Please enter some message"	
+								print "\n<- Please enter some message!"	
 						
 						# Exit from chat if server is down	
 						elif data == "Server Down.":
