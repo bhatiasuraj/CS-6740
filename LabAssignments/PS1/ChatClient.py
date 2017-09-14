@@ -33,7 +33,7 @@ def sendToServer(message, socket, username, addr):
         		print 'Error Code : ' + str(msg)
         		sys.exit()
 				
-
+	# For send command, request receiver information from server
 	if message.split()[0] == "send":
 		try :			
 			socket.sendto(message, addr)			
@@ -42,6 +42,7 @@ def sendToServer(message, socket, username, addr):
         		print 'Error Code : ' + str(msg)
         		sys.exit()
 
+	# Retrieve list of users connected to chat from server
 	if message == "list":
 		try :
 			socket.sendto("list", addr)
@@ -53,6 +54,7 @@ def sendToServer(message, socket, username, addr):
         		print 'Error Code : ' + str(msg)
         		sys.exit()
 
+	# Inform server that client is leaving chat
 	if message == "exit":
 		try :
 			socket.sendto(message, addr)
@@ -63,6 +65,7 @@ def sendToServer(message, socket, username, addr):
 
 def createSocket(ip, port):
 
+	# Create socket and handle failure
 	try:
 		clientSocket = socket(AF_INET, SOCK_DGRAM)
 
@@ -74,6 +77,7 @@ def createSocket(ip, port):
 
 def argsParser():
 
+	# Command-line arguments parser
         parser = argparse.ArgumentParser()
 
         parser.add_argument("-u", help="USERNAME", required=True)
@@ -86,6 +90,7 @@ def argsParser():
 
 def main():
 
+	# Retrieve username, server port and IP from command-line
 	username, port, ip = argsParser()
 	addr = (ip, port)
 
@@ -99,11 +104,13 @@ def main():
 	try:
 		while True:
 
+			# Manage list of different sockets
 			socketList = [sys.stdin, clientSocket]
 			readSocket, writeSocket, errorSocket = select.select(socketList, [], [])
 
 			for sock in readSocket:
 				if sock == clientSocket:
+					# Keep checking for received messages from server or other users
 					try:
 						data = clientSocket.recv(65535)
 
@@ -114,43 +121,56 @@ def main():
 						sys.exit()
 
 					else:
+						# Retrieve receiver information from server to send message directly
 						if data.split()[0] == "Send":
 							receiverIp = data.split()[1]
 							receiverPort = int(data.split()[2])
-
 							receiver = (receiverIp, receiverPort)
-							try:							
+
+							try:
+								# Get actual message from send command							
 								m = message.split()[2]
 								m = (' '.join(message.split(' ')[2:]))
 
+								# Handle socket receiver buffer overflow
 								if len(str(m)) <= 65494:
 									clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+str(m)), receiver)
+
+								# Send in chunks if total message larger > 65535
 								else:
 									clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[0:65494]), receiver)
 									clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[65494:]), receiver)
+
+							# Do not send empty messages
 							except IndexError:
 								print "<- Please enter some message"	
-							
+						
+						# Exit from chat if server is down	
 						elif data == "Server Down.":
 							print "\n+> Server disconnected, try again later"
 							sys.exit()
 
+						# Handle duplicate user log-in and exit
 						elif data == "User "+username+" already exists":
 							sys.stdout.write('\n<- '+data+'\n')
 							sys.exit()
-											
+						
+						# Display any other legitimate messages from other users					
 						else:
 							sys.stdout.write('\n<- '+data+'\n')
 					
 						prompt()
 				else:
+					# Take input from user
 					message = raw_input()
 
+					# Handle user exit
 					if message == "exit":
 						sendToServer(message, clientSocket, username, addr)
 						clientSocket.close()
 						sys.exit(0)
 
+					# Blank command goes to next line
 					elif message =="":
 						prompt()
 
@@ -162,13 +182,18 @@ def main():
 						except IndexError:
 							print "+> Incorrect send format, try again"
 							prompt()
-	
+
+					# Request from server list of users logged in to chat
 					elif message == "list":
 						sendToServer(message, clientSocket, username, addr)
 						prompt()
+
+					# Handle invalid chat commands
 					else:
 						print "+> Command not supported"
 						prompt()
+
+	# Handle keyboard interrup, notify server and exit from chat gracefully
 	except KeyboardInterrupt:
 		sendToServer("exit", clientSocket, username, addr)
 		clientSocket.close()

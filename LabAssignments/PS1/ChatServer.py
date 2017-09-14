@@ -28,7 +28,7 @@ def signIn(serverSocket, u, message, address):
 		else:
 			serverSocket.sendto("User "+username+" already exists", address)
 
-	# Handle user exit
+	# Handle user exit and remove from logged-in database
 	if message == "exit":
 		for key, value in u.items():
 			if value == address:
@@ -67,27 +67,33 @@ def sendMessage(serverSocket, userDict, message, address):
 
 def argsParser():
 
+	# Command-line arguments parser
 	parser = argparse.ArgumentParser()
-	parser.add_argument("-sp", help="port", required=True, type=int)
+	parser.add_argument("-sp", help="server port number", required=True, type=int)
 	args = parser.parse_args()
 
 	return args.sp
 
 def createSocket(serverPort):
 
+	# Create Server socket
 	try:
 		serverSocket = socket(AF_INET, SOCK_DGRAM)
 
-	except socket.error, createError:
+	# Socket create error handle
+	except error, createError:
 		print "Failed to create socket. Error: "+str(creatError) 
 		sys.exit(0)
 
+	# Bind socket to IP address and specified port number
 	try:
 		serverSocket.bind(('', serverPort))
 		print("Server Initialized...")
 
-	except socket.error, bindError:
-		print "Failed to bind socket. Error: "+str(bindError) 
+	# Socket create error handle
+	except error, bindError:
+		print "Failed to bind socket. Error: "+str(bindError)
+		sys.exit(0) 
 	
 	return serverSocket
 			
@@ -102,6 +108,7 @@ def main():
 
 	try:
 		while True:
+			# Wait for messages to be received infinitely. handle accordingly
 			message, address = serverSocket.recvfrom(65535)
 
 			if message.split()[0] == "SIGN-IN":
@@ -118,6 +125,7 @@ def main():
 
 		serverSocket.close()
 
+	# Handle keyboard interrupt and inform connected clients of break down
 	except KeyboardInterrupt:
 		for key, value in userDict.items():
 			serverSocket.sendto("Server Down.", value)		
