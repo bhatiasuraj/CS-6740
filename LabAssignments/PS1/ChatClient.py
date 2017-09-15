@@ -147,11 +147,11 @@ def main():
 						
 						# Exit from chat if server is down	
 						elif data == "Server Down.":
-							print "\n+> Server disconnected, try again later"
+							print "\n+> Server disconnected, try again later."
 							sys.exit()
 
 						# Handle duplicate user log-in and exit
-						elif data == "User "+username+" already exists":
+						elif data == "User "+username+" already exists.":
 							sys.stdout.write('\n<- '+data+'\n')
 							sys.exit()
 						
@@ -180,7 +180,7 @@ def main():
 							sendToServer(message, clientSocket, username, addr)
 
 						except IndexError:
-							print "+> Incorrect send format, try again"
+							print "+> Incorrect send format, please try again."
 							prompt()
 
 					# Request from server list of users logged in to chat
@@ -190,7 +190,7 @@ def main():
 
 					# Handle invalid chat commands
 					else:
-						print "+> Command not supported"
+						print "+> Command not supported, please try again."
 						prompt()
 
 	# Handle keyboard interrup, notify server and exit from chat gracefully
