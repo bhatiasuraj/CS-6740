@@ -39,10 +39,10 @@ def signIn(serverSocket, userDatabase, message, address):
 	return userList, userDatabase
 		
 
-def sendMessage(serverSocket, userDict, message, address):
+def sendMessage(serverSocket, userDatabase, message, address):
 
 	# Extracting sender name
-	for key, value in userDict.items():
+	for key, value in userDatabase.items():
 		if value == address:
 			sender = key
 
@@ -57,7 +57,7 @@ def sendMessage(serverSocket, userDict, message, address):
 		m = (' '.join(message.split(' ')[2:]))
 
 	# Send receiever information to sender
-	for key, value in userDict.items():
+	for key, value in userDatabase.items():
 		if key == receiver:
 			serverSocket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
 			return
@@ -85,7 +85,7 @@ def createSocket(serverPort):
 		print "Failed to create socket. Error: "+str(creatError) 
 		sys.exit(0)
 
-	# Bind socket to IP address and specified port number
+	# Bind socket to all its interfaces and the specified port number
 	try:
 		serverSocket.bind(('', serverPort))
 		print("Server Initialized...")
@@ -105,7 +105,7 @@ def main():
 	# Create server socket
 	serverSocket = createSocket(serverPort)
 	
-	# Maintain mapping of username and addresses	
+	# Maintain dictionary mapping of username and addresses	
 	userDatabase = {}
 
 	try:
@@ -114,22 +114,22 @@ def main():
 			message, address = serverSocket.recvfrom(65535)
 
 			if message.split()[0] == "SIGN-IN":
-				userString, userDict = signIn(serverSocket, userDatabase, message, address)
+				userString, userDatabase = signIn(serverSocket, userDatabase, message, address)
 
 			if message == "list":
 				serverSocket.sendto(" Signed in Users: "+str(userString), address)
 	
 			if message.split()[0] == "send":
-				sendMessage(serverSocket, userDict, message, address)
+				sendMessage(serverSocket, userDatabase, message, address)
 		
 			if message == "exit":
-				userString, userDict = signIn(serverSocket, userDatabase, message, address)
+				userString, userDatabase = signIn(serverSocket, userDatabase, message, address)
 
 		serverSocket.close()
 
 	# Handle keyboard interrupt and inform connected clients of break down
 	except KeyboardInterrupt:
-		for key, value in userDict.items():
+		for key, value in userDatabase.items():
 			serverSocket.sendto("Server Down.", value)		
 
 if __name__ == "__main__":
