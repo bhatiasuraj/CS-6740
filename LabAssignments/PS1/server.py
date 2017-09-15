@@ -8,7 +8,7 @@ Title: ChatServer.py
 
 Description: Server side program for instant chat using UDP sockets in Python
 
-Usage: python ChatServer.py -sp server-port 
+Usage: python server.py -sp server-port
 
 '''
 
@@ -17,11 +17,11 @@ import argparse
 import sys
 
 def signIn(serverSocket, userDatabase, message, address):
-	
+
 	# Receieve username after sign-in
 	if message.split()[0] == "SIGN-IN":
 		username = message.split()[1]
-	
+
 	# Check for duplicate user, add new USER to database
 		if username not in userDatabase:
 			userDatabase[username] = address
@@ -37,7 +37,7 @@ def signIn(serverSocket, userDatabase, message, address):
 	userList = ', '.join(userDatabase.iterkeys())
 
 	return userList, userDatabase
-		
+
 
 def sendMessage(serverSocket, userDatabase, message, address):
 
@@ -47,7 +47,7 @@ def sendMessage(serverSocket, userDatabase, message, address):
 			sender = key
 
 	# Extracting receiver name, handling error for no RECEIVER given
-	try:	 
+	try:
 		receiver = message.split()[1]
 	except IndexError:
 		serverSocket.sendto("Please specify receiver!", address)
@@ -62,7 +62,7 @@ def sendMessage(serverSocket, userDatabase, message, address):
 			serverSocket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
 			return
 
-	# Check for user not logged into chat	
+	# Check for user not logged into chat
 	serverSocket.sendto("No such user logged in, try again.", address)
 
 def argsParser():
@@ -82,7 +82,7 @@ def createSocket(serverPort):
 
 	# Socket create error handle
 	except error, createError:
-		print "Failed to create socket. Error: "+str(creatError) 
+		print "Failed to create socket. Error: "+str(creatError)
 		sys.exit(0)
 
 	# Bind socket to all its interfaces and the specified port number
@@ -93,19 +93,19 @@ def createSocket(serverPort):
 	# Socket create error handle
 	except error, bindError:
 		print "Failed to bind socket. Error: "+str(bindError)
-		sys.exit(0) 
-	
+		sys.exit(0)
+
 	return serverSocket
-			
+
 def main():
 
 	# Parse command line arguments for server port number
 	serverPort = argsParser()
-	
+
 	# Create server socket
 	serverSocket = createSocket(serverPort)
-	
-	# Maintain dictionary mapping of username and addresses	
+
+	# Maintain dictionary mapping of username and addresses
 	userDatabase = {}
 
 	try:
@@ -118,10 +118,10 @@ def main():
 
 			if message == "list":
 				serverSocket.sendto(" Signed in Users: "+str(userString), address)
-	
+
 			if message.split()[0] == "send":
 				sendMessage(serverSocket, userDatabase, message, address)
-		
+
 			if message == "exit":
 				userString, userDatabase = signIn(serverSocket, userDatabase, message, address)
 
@@ -130,7 +130,7 @@ def main():
 	# Handle keyboard interrupt and inform connected clients of break down
 	except KeyboardInterrupt:
 		for key, value in userDatabase.items():
-			serverSocket.sendto("Server Down.", value)		
+			serverSocket.sendto("Server Down.", value)
 
 if __name__ == "__main__":
     main()

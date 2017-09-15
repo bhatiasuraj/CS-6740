@@ -8,7 +8,7 @@ Title: ChatClient.py
 
 Description: Client side program for instant chat using UDP sockets in Python
 
-Usage: python ChatClient.py -u USERNAME -sip server-ip -sp server-port 
+Usage: python client.py -u USERNAME -sip server-ip -sp server-port
 
 '''
 
@@ -32,11 +32,11 @@ def sendToServer(message, socket, username, addr):
 		except error, msg:
 			print 'Error Code : ' + str(msg)
 			sys.exit()
-				
+
 	# For send command, request receiver information from server
 	if message.split()[0] == "send":
-		try :			
-			socket.sendto(message, addr)			
+		try :
+			socket.sendto(message, addr)
 
 		except error, msg:
 			print 'Error Code : ' + str(msg)
@@ -61,7 +61,7 @@ def sendToServer(message, socket, username, addr):
 
 		except error, msg:
 			print 'Error Code : ' + str(msg)
-			sys.exit()		
+			sys.exit()
 
 def createSocket(ip, port):
 
@@ -72,7 +72,7 @@ def createSocket(ip, port):
 	except socket.error:
 		print 'Failed to create socket'
 		sys.exit(0)
-	
+
 	return clientSocket
 
 def argsParser():
@@ -95,7 +95,7 @@ def main():
 	addr = (ip, port)
 
 	# Create client UDP socket
-	clientSocket = createSocket(ip, port)	
+	clientSocket = createSocket(ip, port)
 
 	# Send SIGN-IN message to server after socket creation
 	sendToServer("SIGN-IN", clientSocket, username, addr)
@@ -128,7 +128,7 @@ def main():
 							receiver = (receiverIp, receiverPort)
 
 							try:
-								# Get actual message from send command							
+								# Get actual message from send command
 								m = message.split()[2]
 								m = (' '.join(message.split(' ')[2:]))
 
@@ -143,9 +143,9 @@ def main():
 
 							# Do not send empty messages
 							except IndexError:
-								print "\n<- Please enter some message!"	
-						
-						# Exit from chat if server is down	
+								print "\n<- Please enter some message!"
+
+						# Exit from chat if server is down
 						elif data == "Server Down.":
 							print "\n+> Server disconnected, try again later."
 							sys.exit()
@@ -154,11 +154,11 @@ def main():
 						elif data == "User "+username+" already exists.":
 							sys.stdout.write('\n<- '+data+'\n')
 							sys.exit()
-						
-						# Display any other legitimate messages from other users					
+
+						# Display any other legitimate messages from other users
 						else:
 							sys.stdout.write('\n<- '+data+'\n')
-					
+
 						prompt()
 				else:
 					# Take input from user
@@ -198,7 +198,6 @@ def main():
 		sendToServer("exit", clientSocket, username, addr)
 		clientSocket.close()
 		sys.exit(0)
-		
-		
+
 if __name__ == "__main__":
     main()
