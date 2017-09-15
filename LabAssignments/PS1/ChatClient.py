@@ -30,8 +30,8 @@ def sendToServer(message, socket, username, addr):
 			socket.sendto("SIGN-IN "+username, addr)
 
 		except error, msg:
-        		print 'Error Code : ' + str(msg)
-        		sys.exit()
+			print 'Error Code : ' + str(msg)
+			sys.exit()
 				
 	# For send command, request receiver information from server
 	if message.split()[0] == "send":
@@ -39,8 +39,8 @@ def sendToServer(message, socket, username, addr):
 			socket.sendto(message, addr)			
 
 		except error, msg:
-        		print 'Error Code : ' + str(msg)
-        		sys.exit()
+			print 'Error Code : ' + str(msg)
+			sys.exit()
 
 	# Retrieve list of users connected to chat from server
 	if message == "list":
@@ -51,8 +51,8 @@ def sendToServer(message, socket, username, addr):
 			print str("<-"+data)
 
 		except error, msg:
-        		print 'Error Code : ' + str(msg)
-        		sys.exit()
+			print 'Error Code : ' + str(msg)
+			sys.exit()
 
 	# Inform server that client is leaving chat
 	if message == "exit":
@@ -60,8 +60,8 @@ def sendToServer(message, socket, username, addr):
 			socket.sendto(message, addr)
 
 		except error, msg:
-        		print 'Error Code : ' + str(msg)
-        		sys.exit()		
+			print 'Error Code : ' + str(msg)
+			sys.exit()		
 
 def createSocket(ip, port):
 
@@ -70,19 +70,19 @@ def createSocket(ip, port):
 		clientSocket = socket(AF_INET, SOCK_DGRAM)
 
 	except socket.error:
-    		print 'Failed to create socket'
-    		sys.exit(0)
+		print 'Failed to create socket'
+		sys.exit(0)
 	
 	return clientSocket
 
 def argsParser():
 
 	# Command-line arguments parser
-        parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser()
 
-        parser.add_argument("-u", help="USERNAME", required=True)
-        parser.add_argument("-sip", help="server-ip", required=True)
-        parser.add_argument("-sp", help="port", type=int, required=True)
+	parser.add_argument("-u", help="USERNAME", required=True)
+	parser.add_argument("-sip", help="server-ip", required=True)
+	parser.add_argument("-sp", help="port", type=int, required=True)
 
 	args = parser.parse_args()
 

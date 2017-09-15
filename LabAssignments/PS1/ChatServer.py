@@ -16,27 +16,27 @@ from socket import *
 import argparse
 import sys
 
-def signIn(serverSocket, u, message, address):
+def signIn(serverSocket, userDatabase, message, address):
 	
 	# Receieve username after sign-in
 	if message.split()[0] == "SIGN-IN":
 		username = message.split()[1]
 	
 	# Check for duplicate user, add new USER to database
-		if username not in u:
-			u[username] = address
+		if username not in userDatabase:
+			userDatabase[username] = address
 		else:
 			serverSocket.sendto("User "+username+" already exists", address)
 
 	# Handle user exit and remove from logged-in database
 	if message == "exit":
-		for key, value in u.items():
+		for key, value in userDatabase.items():
 			if value == address:
-				del u[key]
+				del userDatabase[key]
 
-	userList = ', '.join(u.iterkeys())
+	userList = ', '.join(userDatabase.iterkeys())
 
-	return userList, u
+	return userList, userDatabase
 		
 
 def sendMessage(serverSocket, userDict, message, address):
@@ -99,12 +99,14 @@ def createSocket(serverPort):
 			
 def main():
 
-
+	# Parse command line arguments for server port number
 	serverPort = argsParser()
 	
+	# Create server socket
 	serverSocket = createSocket(serverPort)
-		
-	userList = {}
+	
+	# Maintain mapping of username and addresses	
+	userDatabase = {}
 
 	try:
 		while True:
@@ -112,7 +114,7 @@ def main():
 			message, address = serverSocket.recvfrom(65535)
 
 			if message.split()[0] == "SIGN-IN":
-				userString, userDict = signIn(serverSocket, userList, message, address)
+				userString, userDict = signIn(serverSocket, userDatabase, message, address)
 
 			if message == "list":
 				serverSocket.sendto(" Signed in Users: "+str(userString), address)
@@ -121,7 +123,7 @@ def main():
 				sendMessage(serverSocket, userDict, message, address)
 		
 			if message == "exit":
-				userString, userDict = signIn(serverSocket, userList, message, address)
+				userString, userDict = signIn(serverSocket, userDatabase, message, address)
 
 		serverSocket.close()
 
