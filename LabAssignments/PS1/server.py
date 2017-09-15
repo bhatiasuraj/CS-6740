@@ -8,7 +8,7 @@ Title: ChatServer.py
 
 Description: Server side program for instant chat using UDP sockets in Python
 
-Usage: python server.py -sp server-port 
+Usage: python ChatServer.py -sp server-port 
 
 '''
 

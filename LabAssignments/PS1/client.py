@@ -8,7 +8,7 @@ Title: ChatClient.py
 
 Description: Client side program for instant chat using UDP sockets in Python
 
-Usage: python client.py -u USERNAME -sip server-ip -sp server-port 
+Usage: python ChatClient.py -u USERNAME -sip server-ip -sp server-port 
 
 '''
 
