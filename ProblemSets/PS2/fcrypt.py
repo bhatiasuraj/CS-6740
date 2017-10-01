@@ -94,7 +94,12 @@ def main():
 	key = os.urandom(32)
 	iv = os.urandom(16)
 	associated_data = b"SurajBhatia"
-	pt = b"this is a very secret message"
+
+	pt = open(ipPlainText, "rb").read()
+
+	print pt
+
+        #outputfile = open(opPlainText, "wb")
 
 	iv, ct, tag = AESEncryption(key, associated_data, iv, pt)
 	
