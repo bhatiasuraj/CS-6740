@@ -15,7 +15,7 @@ Usage: python fcrypt.py -e destination_public_key_filename sender_private_key_fi
 '''
 
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import padding as paddingdatalib
@@ -25,21 +25,30 @@ import argparse
 import sys
 import os
 
-def AESEncryption():
-	
-	key = os.urandom(32)
-	iv = os.urandom(16)
 
-	data = "This is a secret message"
+def AESEncryption(key, associated_data, iv, pt):
 
-	cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+	cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
+
  	encryptor = cipher.encryptor()
-    	
-	ct = encryptor.update(b"a secret message") + encryptor.finalize()
-	print ct
+
+    	encryptor.authenticate_additional_data(associated_data)
+
+	ct = encryptor.update(pt) + encryptor.finalize()
+
+	return iv, ct, encryptor.tag
+
+def AESDecryption(key, associated_data, iv, tag, ct):
+
+	cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
+
 	decryptor = cipher.decryptor()
+
+	decryptor.authenticate_additional_data(associated_data)
+
 	pt = decryptor.update(ct) + decryptor.finalize()
-	print pt
+
+	return pt
 	
 def argsParser():
 
@@ -82,7 +91,14 @@ def main():
 		cipherFile = paramList[2]
 		opPlainText = paramList[3]
 
-	AESEncryption()
+	key = os.urandom(32)
+	iv = os.urandom(16)
+	associated_data = b"SurajBhatia"
+	pt = b"this is a very secret message"
+
+	iv, ct, tag = AESEncryption(key, associated_data, iv, pt)
+	
+	print AESDecryption(key, associated_data, iv, tag, ct)
 
 
 
