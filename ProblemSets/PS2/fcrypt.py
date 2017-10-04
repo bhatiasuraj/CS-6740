@@ -115,7 +115,6 @@ def main():
 	ext = os.path.splitext(paramList[0])[1].split('.')[1]
 	
 	destPubKey = loadRSAPublicKey(paramList[0], ext)
-	print destPubKey
 
 	sendPriKey = loadRSAPrivateKey(paramList[1], ext)
 	ipFile = paramList[2]
