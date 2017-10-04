@@ -54,11 +54,26 @@ def AESDecryption(key, associatedData, iv, tag, ct):
 	return pt
 
 
+def HASHFunction(data, key):
+	
+	h = hmac.HMAC(key, hashes.SHA512(), backend=default_backend())
+	
+	h.update(data)
+
+	messageDigest = h.finalize()
+	
+	# print hashes.SHA512.name, len(messageDigest) * 8, base64.b64encode(messageDigest)
+
+	return messageDigest
+
+
 def RSAEncryption(key, message):
 	
 	cipherKey = key.encrypt(message, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA512()),algorithm=hashes.SHA256(),label=None))
 
     	return cipherKey
+
+#def RSADecryption():
 
 def dataPadding(data):
 
@@ -80,6 +95,24 @@ def dataUnpadding(paddedData):
 
 	return data
 
+def messageSigning(ext, message):
+
+	signer = ext.signer(padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
+
+	signer.update(message)
+
+	signature =  signer.finalize()
+
+	return signature
+
+def messageVerification(ext, message, signature):
+
+	verifier = ext.verifier(signature,padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
+
+	verifier.update(message)
+
+	return verifier.verify()
+
 
 def loadRSAPublicKey(publicKeyFile, ext):      
 
@@ -91,7 +124,7 @@ def loadRSAPublicKey(publicKeyFile, ext):
 		else:
 			publickey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
 
-		return publicKey
+	return publicKey
 
 
 def loadRSAPrivateKey(privateKeyFile, ext):
@@ -134,8 +167,6 @@ def main():
 	
 	paramList, operation  = argsParser()
 
-	print paramList
-
 	ext = os.path.splitext(paramList[0])[1].split('.')[1]
 	
 	destPubKey = loadRSAPublicKey(paramList[0], ext)
@@ -171,9 +202,27 @@ def main():
 
 	paddedIV = dataPadding(iv)
 
-	print paddedIV
-
 	outputFile.write(cipherKey+paddedIV)
+
+	outputFile.write(lastName)
+
+	messageDigest = HASHFunction(ct+cipherKey, key)
+
+	outputFile.write(messageDigest +base64.b64encode(str(len(cipherKey))))
+
+	outputFile.write(firstName)
+
+	fullMessage = ct + cipherKey + paddedIV + messageDigest
+
+	signedMessage = messageSigning(sendPriKey, fullMessage)
+
+	outputFile.write(signedMessage)	
+
+	outputFile.write(lastName)
+
+	outputFile.write(ct)
+
+        outputFile.close()
 		
 	print AESDecryption(key, associatedData, iv, tag, ct)
 
