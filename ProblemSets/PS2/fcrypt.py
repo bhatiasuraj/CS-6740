@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/python3
 
 '''
@@ -17,38 +18,70 @@ Usage: python fcrypt.py -e destination_public_key_filename sender_private_key_fi
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives import padding as paddingdatalib
 
 from socket import *
 import argparse
 import sys
 import os
+import base64
+import os.path
 
 
-def AESEncryption(key, associated_data, iv, pt):
+def AESEncryption(key, associatedData, iv, pt):
 
 	cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
 
  	encryptor = cipher.encryptor()
 
-    	encryptor.authenticate_additional_data(associated_data)
+    	encryptor.authenticate_additional_data(associatedData)
 
 	ct = encryptor.update(pt) + encryptor.finalize()
 
-	return iv, ct, encryptor.tag
+	return ct, encryptor.tag
 
-def AESDecryption(key, associated_data, iv, tag, ct):
+def AESDecryption(key, associatedData, iv, tag, ct):
 
 	cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
 
 	decryptor = cipher.decryptor()
 
-	decryptor.authenticate_additional_data(associated_data)
+	decryptor.authenticate_additional_data(associatedData)
 
 	pt = decryptor.update(ct) + decryptor.finalize()
 
 	return pt
+
+
+def RSAEncryption(key, message):
+	
+	cipherKey = key.encrypt(message, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA512()),algorithm=hashes.SHA256(),label=None))
+
+    	return cipherKey
+
+
+def loadRSAPublicKey(publicKeyFile, ext):      
+
+	with open(publicKeyFile, "rb") as keyFile:
+
+		if ext == 'pem':
+        		publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
+		else:
+			publickey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
+
+	return publickey
+
+def loadRSAPrivateKey(privateKeyFile, ext):
+	
+	with open(privateKeyFile, "rb") as keyFile:
+
+	        if ext =='pem':
+			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
+	        else:
+			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
+
+	return privateKey
 	
 def argsParser():
 
@@ -78,32 +111,40 @@ def main():
 	# Retrieve parameter list for encryption/decryption operation from command-line
 	
 	paramList, operation  = argsParser()
-	
-	if operation == "e":
-		destPubKeyFile = paramList[0]
-		sendPriKeyFile = paramList[1]
-		ipPlainText = paramList[2]
-		cipherFile = paramList[3]
 
-	if operation == "d":
-		destPriKeyFile = paramList[0]
-		sendPubKeyFile = paramList[1]
-		cipherFile = paramList[2]
-		opPlainText = paramList[3]
+	ext = os.path.splitext(paramList[0])[1].split('.')[1]
+	
+	destPubKey = loadRSAPublicKey(paramList[0], ext)
+	print destPubKey
+
+	sendPriKey = loadRSAPrivateKey(paramList[1], ext)
+	ipFile = paramList[2]
+	opFile = paramList[3]
+
 
 	key = os.urandom(32)
 	iv = os.urandom(16)
-	associated_data = b"SurajBhatia"
 
-	pt = open(ipPlainText, "rb").read()
+	firstName = base64.b64decode('z4DPhc+BzrHPgA====') 	#πυραπ
+	lastName = base64.b64decode('zrLOt86xz4TOuc6x==')  	#βηατια
+
+	associatedData = firstName+lastName
+
+	pt = open(ipFile, "rb").read()
 
 	print pt
 
-        #outputfile = open(opPlainText, "wb")
+        outputFile = open(opFile, "wb")
 
-	iv, ct, tag = AESEncryption(key, associated_data, iv, pt)
+	ct, tag = AESEncryption(key, associatedData, iv, pt)
+
+	outputFile.write(ct)
+
+	outputFile.write(firstName)
+
+	cipherKey = RSAEncryption(destPubKey, key)
 	
-	print AESDecryption(key, associated_data, iv, tag, ct)
+	print AESDecryption(key, associatedData, iv, tag, ct)
 
 
 
