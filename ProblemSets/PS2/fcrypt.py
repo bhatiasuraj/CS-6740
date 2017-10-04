@@ -19,7 +19,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from cryptography.hazmat.primitives import padding as paddingdatalib
+from cryptography.hazmat.primitives import padding as paddingFunction
 
 from socket import *
 import argparse
@@ -60,26 +60,48 @@ def RSAEncryption(key, message):
 
     	return cipherKey
 
+def dataPadding(data):
+
+	padder = paddingFunction.PKCS7(128).padder()
+
+	paddedData = padder.update(data)
+
+	paddedData += padder.finalize()
+
+	return paddedData
+
+def dataUnpadding(paddedData):
+
+	unpadder = paddingFunction.PKCS7(128).unpadder()
+	
+	data = unpadder.update(paddedData)
+
+	data += unpadder.finalize()
+
+	return data
+
 
 def loadRSAPublicKey(publicKeyFile, ext):      
 
 	with open(publicKeyFile, "rb") as keyFile:
 
-		if ext == 'pem':
-        		publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
-		else:
-			publickey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
+		if ext == 'der':
+        		publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
 
-	return publickey
+		else:
+			publickey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
+
+		return publicKey
+
 
 def loadRSAPrivateKey(privateKeyFile, ext):
 	
 	with open(privateKeyFile, "rb") as keyFile:
 
-	        if ext =='pem':
-			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
-	        else:
+	        if ext =='der':
 			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
+	        else:
+			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
 
 	return privateKey
 	
@@ -112,16 +134,20 @@ def main():
 	
 	paramList, operation  = argsParser()
 
+	print paramList
+
 	ext = os.path.splitext(paramList[0])[1].split('.')[1]
 	
 	destPubKey = loadRSAPublicKey(paramList[0], ext)
 
 	sendPriKey = loadRSAPrivateKey(paramList[1], ext)
+
 	ipFile = paramList[2]
+
 	opFile = paramList[3]
 
-
 	key = os.urandom(32)
+
 	iv = os.urandom(16)
 
 	firstName = base64.b64decode('z4DPhc+BzrHPgA====') 	#πυραπ
@@ -142,7 +168,13 @@ def main():
 	outputFile.write(firstName)
 
 	cipherKey = RSAEncryption(destPubKey, key)
-	
+
+	paddedIV = dataPadding(iv)
+
+	print paddedIV
+
+	outputFile.write(cipherKey+paddedIV)
+		
 	print AESDecryption(key, associatedData, iv, tag, ct)
 
 
