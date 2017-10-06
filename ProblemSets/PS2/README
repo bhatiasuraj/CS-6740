@@ -1,0 +1,76 @@
+Title: Sockets Programming: Application of Cryptography
+
+Author: Suraj Bhatia
+
+Files: fcrypt.py
+       RSAKeyGen.py
+       Makefile
+       testScript.sh
+       cleanUp.sh
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------	   
+
+A. KEY TYES and SIZES
+
+  1. For AES Encryption/Decryption, we have generated a 256 bit key. Also, an initialization vector (iv) of size 128 bits is generated. This is done using Python's "urandom" module.
+
+  2. For RSA Encryption/Decryption, we can use two types of keys - PEM (.pem) and DER (.der) key types.
+
+     The public and private keys are generated using openssl command with the help of script RSAKeyGen.py. The RSA key size should not be less than 1024. When we run the script, we can choose the type     
+
+     (pem/der) and the size of the key (1024/2048/3072/4092).
+
+     To clear these keys for a fresh run, execute the script cleanUp.sh and generate the new keys again.
+
+
+B. ALGORITHMS and MODES
+
+  1. We use Advanced Encryption Standard (AES) for encrypting the actual message to be sent. For encrypting messages of random size with block ciphers, we use the Galois Counter Mode (GCM) mode.
+
+  2. We use asymmetric encryption technique RSA for encrypting the symmetric key used in AES encryption.
+
+  3. We use SHA-512 hash function which creates a 512-bit message digest. The hash is calculated for the AES encrypted message and RSA encrypted AES symmetric key needed to decipher it. Hashing is useful
+    
+     to maintain the 'INTEGRITY' of the message.
+
+  4. For padding/unpadding the IV, we using PKCS7 padding technique.
+
+  5. We then sign the messge using the sender's private key along with the encrypted AES key, padded IV and calculated hash. This is done for 'NON-REPUDIATION' which is useful for the receiver.
+
+
+
+C. OUTPUT FILE GENERATION
+
+  1. Append cipher text generated using AES Encryption
+
+  2. Append firstName
+
+  3. Append AES key encrypted using RSA and padded IV
+
+  4. Append lastName
+
+  5. Append Hash of cipher text and encrypted AES key along with lenth of encrypted key
+
+  6. Append firstName
+
+  7. Append signed data which consists of cipher text, encrypted AES key, padded IV and hash message digest.
+
+  8. Append lastName
+
+  9. Append tag value generated using AES Encryption
+
+
+D. STEPS TO RUN PROGRAM
+
+  1. make
+
+  2. ./cleanUp.sh
+
+  3. Generate RSA keys using RSAKeyGen.py
+
+  4. Enter some data in inputPlainFile.txt
+
+  5. ./testScript.sh
+
+  6. Check PASS or FAIL
+

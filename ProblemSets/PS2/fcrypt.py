@@ -7,7 +7,7 @@ Author: Suraj Bhatia
 
 Title: fcrypt.py
 
-Description: 
+Description:
 
 Usage: python fcrypt.py -e destination_public_key_filename sender_private_key_filename input_plaintext_file ciphertext_file
 
@@ -53,17 +53,17 @@ def AESDecryption(key, associatedData, iv, tag, ct):
 	return pt
 
 def HASHFunction(data, key):
-	
+
 	h = hmac.HMAC(key, hashes.SHA512(), backend=default_backend())
-	
+
 	h.update(data)
 
 	messageDigest = h.finalize()
-	
+
 	return messageDigest
 
 def RSAEncryption(key, message):
-	
+
 	cipherKey = key.encrypt(message, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA512()),algorithm=hashes.SHA256(),label=None))
 
     	return cipherKey
@@ -71,7 +71,7 @@ def RSAEncryption(key, message):
 def RSADecryption(key, cipherKey):
 
 	key = key.decrypt(cipherKey,padding.OAEP(mgf = padding.MGF1(algorithm=hashes.SHA512()),algorithm = hashes.SHA256(),label = None))
-	
+
 	return key
 
 def dataPadding(data):
@@ -87,7 +87,7 @@ def dataPadding(data):
 def dataUnpadding(paddedData):
 
 	unpadder = paddingFunction.PKCS7(128).unpadder()
-	
+
 	data = unpadder.update(paddedData)
 
 	data += unpadder.finalize()
@@ -117,7 +117,7 @@ def messageVerification(sendPubKey, message, signature):
     	except:
         	return False
 
-def loadRSAPublicKey(publicKeyFile, keyType):      
+def loadRSAPublicKey(publicKeyFile, keyType):
 
 	with open(publicKeyFile, "rb") as keyFile:
 
@@ -133,12 +133,12 @@ def loadRSAPublicKey(publicKeyFile, keyType):
 	return publicKey
 
 def loadRSAPrivateKey(privateKeyFile, keyType):
-	
+
 	with open(privateKeyFile, "rb") as keyFile:
 
 		if keyType == 'der':
 			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
-		
+
 		elif keyType == "pem":
 			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
 
@@ -146,7 +146,7 @@ def loadRSAPrivateKey(privateKeyFile, keyType):
 			sys.exit("Unknown key type.")
 
 	return privateKey
-	
+
 def argsParser():
 
 	# Command-line arguments parser
@@ -155,7 +155,7 @@ def argsParser():
 	parser.add_argument("-e", nargs='+', help="Encryption Parameter List", type=str)
 	parser.add_argument("-d", nargs='+', help="Decryption Parameter List", type=str)
 
-	args = parser.parse_args()	
+	args = parser.parse_args()
 
 	if args.e:
 
@@ -175,7 +175,7 @@ def argsParser():
 def Encryption(paramList, operation, firstName, lastName, associatedData):
 
 	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
-	
+
 	destPubKey = loadRSAPublicKey(paramList[0], keyType)
 	sendPriKey = loadRSAPrivateKey(paramList[1], keyType)
 	ptFile = paramList[2]
@@ -238,13 +238,13 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 
 	paddedIV = cipherKey_paddedIV[int(cipherKeyLength):]
 
-	signedMessage, tag = signedMessage_tag.split(lastName) 
+	signedMessage, tag = signedMessage_tag.split(lastName)
 
 	fullMessage = ct + cipherKey + paddedIV + messageDigest
 
 	if messageVerification(sendPubKey, fullMessage, signedMessage) == False:
 		sys.exit("Signature verification failed, try again!")
-            
+
 	key = RSADecryption(destPriKey, cipherKey)
 
 	hashVerification = HASHFunction(ct+cipherKey, key)
@@ -260,7 +260,7 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 
 	outputFile.write(pt)
 
-	outputFile.close() 
+	outputFile.close()
 
 def main():
 
@@ -270,9 +270,9 @@ def main():
 	lastName = base64.b64decode('zrLOt86xz4TOuc6x==')  	#βηατια
 
 	associatedData = firstName+lastName
-	
+
 	paramList, operation  = argsParser()
-	
+
 	if operation == 'e':
 		Encryption(paramList, operation, firstName, lastName, associatedData)
 
@@ -283,7 +283,7 @@ def main():
 	else:
 		sys.exit("Invalid operation parameter, try again.")
 
-	
+
 if __name__ == "__main__":
     main()
 
