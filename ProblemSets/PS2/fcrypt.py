@@ -20,7 +20,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives import padding as paddingFunction
-import cryptography
 
 from socket import *
 import argparse
@@ -133,7 +132,7 @@ def loadRSAPublicKey(publicKeyFile, keyType):
 			except ValueError:
 				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 		else:
-			sys.exit("Unknown key type.")
+			sys.exit("ERROR: Unknown key type.")
 
 	return publicKey
 
@@ -153,7 +152,7 @@ def loadRSAPrivateKey(privateKeyFile, keyType):
 			except ValueError:
 				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 		else:
-			sys.exit("Unknown key type.")
+			sys.exit("ERROR: Unknown key type.")
 
 	return privateKey
 
@@ -172,14 +171,14 @@ def argsParser():
 		if args.e != 'None' and len(args.e) == 4:
 			return args.e, "e"
 		else:
-			print "Four paramaters required, try again."
+			print "ERROR: Four paramaters required, try again."
 			sys.exit()
 
 	elif args.d:
 		if args.d != 'None' and len(args.d) == 4:
 			return args.d, "d"
 		else:
-			print "Four paramaters required, try again."
+			print "ERROR: Four paramaters required, try again."
 			sys.exit()
 
 def Encryption(paramList, operation, firstName, lastName, associatedData):
@@ -189,7 +188,7 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 	if keyType == 'pem' or keyType == 'der':
 		pass
 	else:
-		sys.exit("Unsupported key file type, please try again!")
+		sys.exit("ERROR: Unsupported key file type, please try again!")
 
 	destPubKey = loadRSAPublicKey(paramList[0], keyType)
 	sendPriKey = loadRSAPrivateKey(paramList[1], keyType)
@@ -202,7 +201,7 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 	pt = open(ptFile, "rb").read()
 
 	outputFile = open(ctFile, "wb")
-
+	
 	ct, tag = AESEncryption(key, associatedData, iv, pt)
 
 	outputFile.write(ct)
@@ -237,7 +236,7 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 	if keyType == 'pem' or keyType == 'der':
 		pass
 	else:
-		sys.exit("Unsupported key file type, please try again!")
+		sys.exit("ERROR: Unsupported key file type, please try again!")
 
 	destPriKey = loadRSAPrivateKey(paramList[0], keyType)
 	sendPubKey = loadRSAPublicKey(paramList[1], keyType)
@@ -263,19 +262,26 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 	fullMessage = ct + cipherKey + paddedIV + messageDigest
 
 	if messageVerification(sendPubKey, fullMessage, signedMessage) == False:
-		sys.exit("Signature verification failed, try again!")
+		sys.exit("ERROR: Signature verification failed, try again!")
 
 	key = RSADecryption(destPriKey, cipherKey)
 
 	hashVerification = HASHFunction(ct+cipherKey, key)
 
 	if hashVerification != messageDigest:
-		sys.exit("Hash values do not match.")
+		sys.exit("ERROR: Hash values do not match.")
 
 	iv = dataUnpadding(paddedIV)
-
-	pt = AESDecryption(key, associatedData, iv, tag, ct)
-
+	
+	try:
+		pt = AESDecryption(key, associatedData, iv, tag, ct)
+	
+	except ValueError:
+		sys.exit("ERROR: Invalid key size (512) for AES")
+		
+	except cryptography.exceptions.InvalidTag:
+		sys.exit("ERROR: Invalid tag!")
+		
 	outputFile = open(ptFile, "wb")
 	outputFile.write(pt)
 	outputFile.close()

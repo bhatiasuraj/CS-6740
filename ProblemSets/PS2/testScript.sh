@@ -2,6 +2,8 @@
 
 # Simple test for fcrypt.py (CS 4740/6740: Network Security)
 
+> outputPlainFile.txt
+
 #python fcrypt.py -e destinationPublicKey.der senderPrivateKey.der inputPlainFile.txt outputCipherFile.txt
 #python fcrypt.py -d destinationPrivateKey.der senderPublicKey.der outputCipherFile.txt outputPlainFile.txt
 
@@ -19,3 +21,4 @@ else
 	echo "FAIL"
 
 fi
+
