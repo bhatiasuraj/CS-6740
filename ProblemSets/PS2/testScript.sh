@@ -8,7 +8,14 @@
 python fcrypt.py -e destinationPublicKey.pem senderPrivateKey.pem inputPlainFile.txt outputCipherFile.txt
 python fcrypt.py -d destinationPrivateKey.pem senderPublicKey.pem outputCipherFile.txt outputPlainFile.txt
 
-if ! diff -q inputPlainFile.txt outputPlainFile.txt > /dev/null ; then
-  echo "FAIL"
-  else echo "PASS!"
+if [ $? -eq 0 ]; then
+
+	if ! diff -q inputPlainFile.txt outputPlainFile.txt > /dev/null; then
+  		echo "FAIL"
+  	else echo "PASS!"
+
+	fi
+else
+	echo "FAIL"
+
 fi

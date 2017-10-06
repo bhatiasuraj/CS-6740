@@ -122,11 +122,16 @@ def loadRSAPublicKey(publicKeyFile, keyType):
 	with open(publicKeyFile, "rb") as keyFile:
 
 		if keyType == 'der':
-			publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
-
+			try:
+				publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
+			except ValueError:
+				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
+				
 		elif keyType == 'pem':
-			publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
-
+			try:
+				publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
+			except ValueError:
+				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 		else:
 			sys.exit("Unknown key type.")
 
@@ -137,11 +142,16 @@ def loadRSAPrivateKey(privateKeyFile, keyType):
 	with open(privateKeyFile, "rb") as keyFile:
 
 		if keyType == 'der':
-			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
+			try:
+				privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
+			except ValueError:
+				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 
 		elif keyType == "pem":
-			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
-
+			try:
+				privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
+			except ValueError:
+				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 		else:
 			sys.exit("Unknown key type.")
 
@@ -175,6 +185,11 @@ def argsParser():
 def Encryption(paramList, operation, firstName, lastName, associatedData):
 
 	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
+	
+	if keyType == 'pem' or keyType == 'der':
+		pass
+	else:
+		sys.exit("Unsupported key file type, please try again!")
 
 	destPubKey = loadRSAPublicKey(paramList[0], keyType)
 	sendPriKey = loadRSAPrivateKey(paramList[1], keyType)
@@ -218,6 +233,11 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 def Decryption(paramList, operation, firstName, lastName, associatedData):
 
 	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
+	
+	if keyType == 'pem' or keyType == 'der':
+		pass
+	else:
+		sys.exit("Unsupported key file type, please try again!")
 
 	destPriKey = loadRSAPrivateKey(paramList[0], keyType)
 	sendPubKey = loadRSAPublicKey(paramList[1], keyType)
