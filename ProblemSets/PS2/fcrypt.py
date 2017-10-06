@@ -94,9 +94,9 @@ def dataUnpadding(paddedData):
 
 	return data
 
-def messageSigning(key, message):
+def messageSigning(sendPriKey, message):
 
-	signer = key.signer(padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
+	signer = sendPriKey.signer(padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
 
 	signer.update(message)
 
@@ -117,14 +117,14 @@ def messageVerification(sendPubKey, message, signature):
     	except:
         	return False
 
-def loadRSAPublicKey(publicKeyFile, ext):      
+def loadRSAPublicKey(publicKeyFile, keyType):      
 
 	with open(publicKeyFile, "rb") as keyFile:
 
-		if ext == 'der':
+		if keyType == 'der':
         		publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
 
-		elif ext == 'pem':
+		elif keyType == 'pem':
 			publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
 
 		else:
@@ -132,14 +132,14 @@ def loadRSAPublicKey(publicKeyFile, ext):
 
 	return publicKey
 
-def loadRSAPrivateKey(privateKeyFile, ext):
+def loadRSAPrivateKey(privateKeyFile, keyType):
 	
 	with open(privateKeyFile, "rb") as keyFile:
 
-		if ext == 'der':
+		if keyType == 'der':
 			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
 		
-		elif ext == "pem":
+		elif keyType == "pem":
 			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
 
 		else:
@@ -174,10 +174,10 @@ def argsParser():
 
 def Encryption(paramList, operation, firstName, lastName, associatedData):
 
-	ext = os.path.splitext(paramList[0])[1].split('.')[1]
+	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
 	
-	destPubKey = loadRSAPublicKey(paramList[0], ext)
-	sendPriKey = loadRSAPrivateKey(paramList[1], ext)
+	destPubKey = loadRSAPublicKey(paramList[0], keyType)
+	sendPriKey = loadRSAPrivateKey(paramList[1], keyType)
 	ptFile = paramList[2]
 	ctFile = paramList[3]
 
@@ -217,10 +217,10 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 
 def Decryption(paramList, operation, firstName, lastName, associatedData):
 
-	ext = os.path.splitext(paramList[0])[1].split('.')[1]
+	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
 
-	destPriKey = loadRSAPrivateKey(paramList[0], ext)
-	sendPubKey = loadRSAPublicKey(paramList[1], ext)
+	destPriKey = loadRSAPrivateKey(paramList[0], keyType)
+	sendPubKey = loadRSAPublicKey(paramList[1], keyType)
 	ctFile = paramList[2]
 	ptFile = paramList[3]
 
