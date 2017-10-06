@@ -1,25 +1,36 @@
+#!/usr/bin/python
+
 import os
+import sys
 
-key = raw_input('Enter the Type of key (pem/der):')
-bits = raw_input('Enter Key Size (1024/2048/3072/4096):')
+keyType = raw_input("Enter type of key (pem/der): ")
 
+keySize = raw_input("Enter Key Size (1024/2048/3072/4096): ")
 
-if key == 'pem':
-    os.system('openssl genrsa -out senderprivate.pem '+bits)
-    os.system('openssl rsa -in senderprivate.pem -pubout > senderpublic.pem')
+if keySize == "1024" or keySize == "2048" or keySize == "3072" or keySize == "4096":
+	pass
 
-    os.system('openssl genrsa -out receiverprivate.pem '+bits)
-    os.system('openssl rsa -in receiverprivate.pem -pubout > receiverpublic.pem')
-
-elif key == 'der':
-    os.system('openssl genrsa -out senderprivate.pem '+bits)
-    os.system('openssl pkcs8 -topk8 -inform PEM -outform DER -in senderprivate.pem -out senderprivate.der -nocrypt')
-    os.system('openssl rsa -in senderprivate.pem -pubout -outform DER -out senderpublic.der')
-    os.system('rm senderprivate.pem')
-
-    os.system('openssl genrsa -out receiverprivate.pem '+bits)
-    os.system('openssl pkcs8 -topk8 -inform PEM -outform DER -in receiverprivate.pem -out receiverprivate.der -nocrypt')
-    os.system('openssl rsa -in receiverprivate.pem -pubout -outform DER -out receiverpublic.der')
-    os.system('rm receiverprivate.pem')
 else:
-    exit('Key type not supported! :(')
+	print "ERROR: Enter appropriate key size!"
+	sys.exit()
+
+if keyType == "pem":
+    os.system("openssl genrsa -out senderPrivateKey.pem "+keySize)
+    os.system("openssl rsa -in senderPrivateKey.pem -pubout > senderPublicKey.pem")
+
+    os.system("openssl genrsa -out destinationPrivateKey.pem "+keySize)
+    os.system("openssl rsa -in destinationPrivateKey.pem -pubout > destinationPublicKey.pem")
+
+elif keyType == "der":
+    os.system("openssl genrsa -out senderPrivateKey.pem "+keySize)
+    os.system("openssl pkcs8 -topk8 -inform PEM -outform DER -in senderPrivateKey.pem -out senderPrivateKey.der -nocrypt")
+    os.system("openssl rsa -in senderPrivateKey.pem -pubout -outform DER -out senderPublicKey.der")
+    os.system("rm senderPrivateKey.pem")
+
+    os.system("openssl genrsa -out destinationPrivateKey.pem "+keySize)
+    os.system("openssl pkcs8 -topk8 -inform PEM -outform DER -in destinationPrivateKey.pem -out destinationPrivateKey.der -nocrypt")
+    os.system("openssl rsa -in destinationPrivateKey.pem -pubout -outform DER -out destinationPublicKey.der")
+    os.system("rm destinationPrivateKey.pem")
+
+else:
+    sys.exit("ERROR: Key type not supported!")

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#!/usr/bin/python3
+#!/usr/bin/python
 
 '''
 
@@ -27,8 +27,6 @@ import argparse
 import sys
 import os
 import base64
-import os.path
-
 
 def AESEncryption(key, associatedData, iv, pt):
 
@@ -54,7 +52,6 @@ def AESDecryption(key, associatedData, iv, tag, ct):
 
 	return pt
 
-
 def HASHFunction(data, key):
 	
 	h = hmac.HMAC(key, hashes.SHA512(), backend=default_backend())
@@ -64,7 +61,6 @@ def HASHFunction(data, key):
 	messageDigest = h.finalize()
 	
 	return messageDigest
-
 
 def RSAEncryption(key, message):
 	
@@ -108,18 +104,18 @@ def messageSigning(key, message):
 
 	return signature
 
-def messageVerification(key, message, signature):
+def messageVerification(sendPubKey, message, signature):
 
-	verifier = key.verifier(signature,padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
+	verifier = sendPubKey.verifier(signature,padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
 
 	verifier.update(message)
 
 	try:
         	verifier.verify()
         	return True
-    	except InvalidSignature:
-        	return False
 
+    	except:
+        	return False
 
 def loadRSAPublicKey(publicKeyFile, ext):      
 
@@ -128,20 +124,26 @@ def loadRSAPublicKey(publicKeyFile, ext):
 		if ext == 'der':
         		publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
 
+		elif ext == 'pem':
+			publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
+
 		else:
-			publickey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
+			sys.exit("Unknown key type.")
 
 	return publicKey
-
 
 def loadRSAPrivateKey(privateKeyFile, ext):
 	
 	with open(privateKeyFile, "rb") as keyFile:
 
-		if ext =='der':
+		if ext == 'der':
 			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
-		else:
+		
+		elif ext == "pem":
 			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
+
+		else:
+			sys.exit("Unknown key type.")
 
 	return privateKey
 	
@@ -170,21 +172,16 @@ def argsParser():
 			print "Four paramaters required, try again."
 			sys.exit()
 
-
 def Encryption(paramList, operation, firstName, lastName, associatedData):
 
 	ext = os.path.splitext(paramList[0])[1].split('.')[1]
 	
 	destPubKey = loadRSAPublicKey(paramList[0], ext)
-
 	sendPriKey = loadRSAPrivateKey(paramList[1], ext)
-
 	ptFile = paramList[2]
-
 	ctFile = paramList[3]
 
 	key = os.urandom(32)
-
 	iv = os.urandom(16)
 
 	pt = open(ptFile, "rb").read()
@@ -194,7 +191,6 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 	ct, tag = AESEncryption(key, associatedData, iv, pt)
 
 	outputFile.write(ct)
-
 	outputFile.write(firstName)
 
 	cipherKey = RSAEncryption(destPubKey, key)
@@ -202,23 +198,19 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 	paddedIV = dataPadding(iv)
 
 	outputFile.write(cipherKey+paddedIV)
-
 	outputFile.write(lastName)
 
 	messageDigest = HASHFunction(ct+cipherKey, key)
 
 	outputFile.write(messageDigest +base64.b64encode(str(len(cipherKey))))
-
 	outputFile.write(firstName)
 
 	fullMessage = ct + cipherKey + paddedIV + messageDigest
 
 	signedMessage = messageSigning(sendPriKey, fullMessage)
 
-	outputFile.write(signedMessage)	
-
+	outputFile.write(signedMessage)
 	outputFile.write(lastName)
-
 	outputFile.write(tag)
 
         outputFile.close()
@@ -250,14 +242,9 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 
 	fullMessage = ct + cipherKey + paddedIV + messageDigest
 
-	try:
-
-            pass
-
-        except cryptography.exceptions.InvalidSignature:
-
-            exit('Invalid Signature.')
-
+	if messageVerification(sendPubKey, fullMessage, signedMessage) == False:
+		sys.exit("Signature verification failed, try again!")
+            
 	key = RSADecryption(destPriKey, cipherKey)
 
 	hashVerification = HASHFunction(ct+cipherKey, key)
