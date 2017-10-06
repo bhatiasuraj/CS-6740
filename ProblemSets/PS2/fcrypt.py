@@ -32,9 +32,9 @@ def AESEncryption(key, associatedData, iv, pt):
 
 	cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
 
- 	encryptor = cipher.encryptor()
+	encryptor = cipher.encryptor()
 
-    	encryptor.authenticate_additional_data(associatedData)
+	encryptor.authenticate_additional_data(associatedData)
 
 	ct = encryptor.update(pt) + encryptor.finalize()
 
@@ -66,7 +66,7 @@ def RSAEncryption(key, message):
 
 	cipherKey = key.encrypt(message, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA512()),algorithm=hashes.SHA256(),label=None))
 
-    	return cipherKey
+	return cipherKey
 
 def RSADecryption(key, cipherKey):
 
@@ -111,18 +111,18 @@ def messageVerification(sendPubKey, message, signature):
 	verifier.update(message)
 
 	try:
-        	verifier.verify()
-        	return True
+		verifier.verify()
+		return True
 
-    	except:
-        	return False
+	except:
+		return False
 
 def loadRSAPublicKey(publicKeyFile, keyType):
 
 	with open(publicKeyFile, "rb") as keyFile:
 
 		if keyType == 'der':
-        		publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
+			publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
 
 		elif keyType == 'pem':
 			publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
@@ -186,7 +186,7 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 
 	pt = open(ptFile, "rb").read()
 
-        outputFile = open(ctFile, "wb")
+	outputFile = open(ctFile, "wb")
 
 	ct, tag = AESEncryption(key, associatedData, iv, pt)
 
@@ -213,7 +213,7 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 	outputFile.write(lastName)
 	outputFile.write(tag)
 
-        outputFile.close()
+	outputFile.close()
 
 def Decryption(paramList, operation, firstName, lastName, associatedData):
 
@@ -249,17 +249,15 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 
 	hashVerification = HASHFunction(ct+cipherKey, key)
 
-        if hashVerification != messageDigest:
-            sys.exit("Hash values do not match.")
+	if hashVerification != messageDigest:
+		sys.exit("Hash values do not match.")
 
 	iv = dataUnpadding(paddedIV)
 
 	pt = AESDecryption(key, associatedData, iv, tag, ct)
 
 	outputFile = open(ptFile, "wb")
-
 	outputFile.write(pt)
-
 	outputFile.close()
 
 def main():
@@ -276,13 +274,11 @@ def main():
 	if operation == 'e':
 		Encryption(paramList, operation, firstName, lastName, associatedData)
 
-
 	elif operation == 'd':
 		Decryption(paramList, operation, firstName, lastName, associatedData)
 
 	else:
 		sys.exit("Invalid operation parameter, try again.")
-
 
 if __name__ == "__main__":
     main()
