@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives import padding as paddingFunction
+import cryptography
 
 from socket import *
 import argparse
@@ -62,8 +63,6 @@ def HASHFunction(data, key):
 
 	messageDigest = h.finalize()
 	
-	# print hashes.SHA512.name, len(messageDigest) * 8, base64.b64encode(messageDigest)
-
 	return messageDigest
 
 
@@ -73,7 +72,11 @@ def RSAEncryption(key, message):
 
     	return cipherKey
 
-#def RSADecryption():
+def RSADecryption(key, cipherKey):
+
+	key = key.decrypt(cipherKey,padding.OAEP(mgf = padding.MGF1(algorithm=hashes.SHA512()),algorithm = hashes.SHA256(),label = None))
+	
+	return key
 
 def dataPadding(data):
 
@@ -95,9 +98,9 @@ def dataUnpadding(paddedData):
 
 	return data
 
-def messageSigning(ext, message):
+def messageSigning(key, message):
 
-	signer = ext.signer(padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
+	signer = key.signer(padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
 
 	signer.update(message)
 
@@ -105,13 +108,17 @@ def messageSigning(ext, message):
 
 	return signature
 
-def messageVerification(ext, message, signature):
+def messageVerification(key, message, signature):
 
-	verifier = ext.verifier(signature,padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
+	verifier = key.verifier(signature,padding.PSS(mgf = padding.MGF1(hashes.SHA512()), salt_length = padding.PSS.MAX_LENGTH), hashes.SHA512())
 
 	verifier.update(message)
 
-	return verifier.verify()
+	try:
+        	verifier.verify()
+        	return True
+    	except InvalidSignature:
+        	return False
 
 
 def loadRSAPublicKey(publicKeyFile, ext):      
@@ -131,9 +138,9 @@ def loadRSAPrivateKey(privateKeyFile, ext):
 	
 	with open(privateKeyFile, "rb") as keyFile:
 
-	        if ext =='der':
+		if ext =='der':
 			privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
-	        else:
+		else:
 			privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
 
 	return privateKey
@@ -148,24 +155,23 @@ def argsParser():
 
 	args = parser.parse_args()	
 
-	if args.e != 'None' and len(args.e) == 4:
-		return args.e, "e"
-	else:
-		print "Four paramaters required, try again."
-		sys.exit()
+	if args.e:
 
-	if args.d != 'None' and len(args.d) == 4:
-		return args.d, "d"
-	else:
-		print "Four paramaters required, try again."
-		sys.exit()
+		if args.e != 'None' and len(args.e) == 4:
+			return args.e, "e"
+		else:
+			print "Four paramaters required, try again."
+			sys.exit()
 
-	
-def main():
+	elif args.d:
+		if args.d != 'None' and len(args.d) == 4:
+			return args.d, "d"
+		else:
+			print "Four paramaters required, try again."
+			sys.exit()
 
-	# Retrieve parameter list for encryption/decryption operation from command-line
-	
-	paramList, operation  = argsParser()
+
+def Encryption(paramList, operation, firstName, lastName, associatedData):
 
 	ext = os.path.splitext(paramList[0])[1].split('.')[1]
 	
@@ -173,24 +179,17 @@ def main():
 
 	sendPriKey = loadRSAPrivateKey(paramList[1], ext)
 
-	ipFile = paramList[2]
+	ptFile = paramList[2]
 
-	opFile = paramList[3]
+	ctFile = paramList[3]
 
 	key = os.urandom(32)
 
 	iv = os.urandom(16)
 
-	firstName = base64.b64decode('z4DPhc+BzrHPgA====') 	#πυραπ
-	lastName = base64.b64decode('zrLOt86xz4TOuc6x==')  	#βηατια
+	pt = open(ptFile, "rb").read()
 
-	associatedData = firstName+lastName
-
-	pt = open(ipFile, "rb").read()
-
-	print pt
-
-        outputFile = open(opFile, "wb")
+        outputFile = open(ctFile, "wb")
 
 	ct, tag = AESEncryption(key, associatedData, iv, pt)
 
@@ -220,14 +219,84 @@ def main():
 
 	outputFile.write(lastName)
 
-	outputFile.write(ct)
+	outputFile.write(tag)
 
         outputFile.close()
-		
-	print AESDecryption(key, associatedData, iv, tag, ct)
+
+def Decryption(paramList, operation, firstName, lastName, associatedData):
+
+	ext = os.path.splitext(paramList[0])[1].split('.')[1]
+
+	destPriKey = loadRSAPrivateKey(paramList[0], ext)
+	sendPubKey = loadRSAPublicKey(paramList[1], ext)
+	ctFile = paramList[2]
+	ptFile = paramList[3]
+
+	output = open(ctFile, 'rb').read()
+
+	ct, cipherKey_paddedIV_messageDigest_cipherKeyLength, signedMessage_tag = output.split(firstName)
+
+	cipherKey_paddedIV, messageDigest_cipherKeyLength = cipherKey_paddedIV_messageDigest_cipherKeyLength.split(lastName)
+
+	messageDigest = messageDigest_cipherKeyLength[0:64]
+
+	cipherKeyLength = base64.b64decode(messageDigest_cipherKeyLength[64:])
+
+	cipherKey = cipherKey_paddedIV[0:int(cipherKeyLength)]
+
+	paddedIV = cipherKey_paddedIV[int(cipherKeyLength):]
+
+	signedMessage, tag = signedMessage_tag.split(lastName) 
+
+	fullMessage = ct + cipherKey + paddedIV + messageDigest
+
+	try:
+
+            pass
+
+        except cryptography.exceptions.InvalidSignature:
+
+            exit('Invalid Signature.')
+
+	key = RSADecryption(destPriKey, cipherKey)
+
+	hashVerification = HASHFunction(ct+cipherKey, key)
+
+        if hashVerification != messageDigest:
+            sys.exit("Hash values do not match.")
+
+	iv = dataUnpadding(paddedIV)
+
+	pt = AESDecryption(key, associatedData, iv, tag, ct)
+
+	outputFile = open(ptFile, "wb")
+
+	outputFile.write(pt)
+
+	outputFile.close() 
+
+def main():
+
+	# Retrieve parameter list for encryption/decryption operation from command-line
+
+	firstName = base64.b64decode('z4DPhc+BzrHPgA====') 	#πυραπ
+	lastName = base64.b64decode('zrLOt86xz4TOuc6x==')  	#βηατια
+
+	associatedData = firstName+lastName
+	
+	paramList, operation  = argsParser()
+	
+	if operation == 'e':
+		Encryption(paramList, operation, firstName, lastName, associatedData)
 
 
+	elif operation == 'd':
+		Decryption(paramList, operation, firstName, lastName, associatedData)
 
+	else:
+		sys.exit("Invalid operation parameter, try again.")
+
+	
 if __name__ == "__main__":
     main()
 
