@@ -131,45 +131,49 @@ def messageVerification(sendPubKey, message, signature):
 def loadRSAPublicKey(publicKeyFile, keyType):
 	
 	# Function for opening the public key files, reading the content and serializing it
+	try:
+		with open(publicKeyFile, "rb") as keyFile:
 
-	with open(publicKeyFile, "rb") as keyFile:
-
-		if keyType == 'der':
-			try:
-				publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
-			except ValueError:
-				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
+			if keyType == 'der':
+				try:
+					publicKey = serialization.load_der_public_key(keyFile.read(), backend=default_backend())
+				except ValueError:
+					sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 				
-		elif keyType == 'pem':
-			try:
-				publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
-			except ValueError:
-				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
-		else:
-			sys.exit("ERROR: Unknown key type.")
-
+			elif keyType == 'pem':
+				try:
+					publicKey = serialization.load_pem_public_key(keyFile.read(), backend=default_backend())
+				except ValueError:
+					sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
+			else:
+				sys.exit("ERROR: Unknown key type.")
+	except IOError:
+		sys.exit("ERROR: No such public key file, verify arguments again!")
+		
 	return publicKey
 
 def loadRSAPrivateKey(privateKeyFile, keyType):
 	
 	# Function for opening the private key files, reading the content and serializing it
+	try:
+		with open(privateKeyFile, "rb") as keyFile:
 
-	with open(privateKeyFile, "rb") as keyFile:
+			if keyType == 'der':
+				try:
+					privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
+				except ValueError:
+					sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
 
-		if keyType == 'der':
-			try:
-				privateKey = serialization.load_der_private_key(keyFile.read(),password = None,backend = default_backend())
-			except ValueError:
-				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
-
-		elif keyType == "pem":
-			try:
-				privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
-			except ValueError:
-				sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
-		else:
-			sys.exit("ERROR: Unknown key type.")
-
+			elif keyType == "pem":
+				try:
+					privateKey = serialization.load_pem_private_key(keyFile.read(),password = None,backend = default_backend())
+				except ValueError:
+					sys.exit("ValueError: Could not deserialize key data, please check key file for modifications")
+			else:
+				sys.exit("ERROR: Unknown key type.")
+	except IOError:
+		sys.exit("ERROR: No such private key file, verify arguments again!")
+		
 	return privateKey
 
 def argsParser():
@@ -219,11 +223,17 @@ def Encryption(paramList, operation, firstName, lastName, associatedData):
 	iv = os.urandom(16)
 
 	# Read data from input plaintext file to be encrypted
-	pt = open(ptFile, "rb").read()
+	try:
+		pt = open(ptFile, "rb").read()
+	except IOError:
+		sys.exit("ERROR: No such file/directory, verify arguments again!")
 
 	# Open output file where encrypted data will be stored and sent
-	outputFile = open(ctFile, "wb")
-
+	try:
+		outputFile = open(ctFile, "wb")
+	except IOError:
+		sys.exit("ERROR: No such file/directory, verify arguments again!")
+		
 	# Generate cipher text and tag data from AES	
 	ct, tag = AESEncryption(key, associatedData, iv, pt)
 
@@ -276,14 +286,23 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 	ptFile = paramList[3]
 
 	# Open output file where decrypted data will be stored
-	output = open(ctFile, 'rb').read()
-	
+	try:
+		output = open(ctFile, 'rb').read()
+	except IOError:
+		sys.exit("ERROR: No such file/directory, verify arguments again!")
+		
 	# Using first identifier, split the encrypted message
-	ct, cipherKey_paddedIV_messageDigest_cipherKeyLength, signedMessage_tag = output.split(firstName)
-
+	try:
+		ct, cipherKey_paddedIV_messageDigest_cipherKeyLength, signedMessage_tag = output.split(firstName)
+	except ValueError:
+		sys.exit("ERROR: Decryption failed!")
+		
 	# Using second identifier, split one part
-	cipherKey_paddedIV, messageDigest_cipherKeyLength = cipherKey_paddedIV_messageDigest_cipherKeyLength.split(lastName)
-
+	try:
+		cipherKey_paddedIV, messageDigest_cipherKeyLength = cipherKey_paddedIV_messageDigest_cipherKeyLength.split(lastName)
+	except ValueError:
+		sys.exit("ERROR: Decryption failed!")
+		
 	# Get the hashed message of size 512-bits
 	messageDigest = messageDigest_cipherKeyLength[0:64]
 	
@@ -293,7 +312,11 @@ def Decryption(paramList, operation, firstName, lastName, associatedData):
 	paddedIV = cipherKey_paddedIV[int(cipherKeyLength):]
 
 	# Get and verify the signed message
-	signedMessage, tag = signedMessage_tag.split(lastName)
+	try:
+		signedMessage, tag = signedMessage_tag.split(lastName)
+	except ValueError:
+		sys.exit("ERROR: Decryption failed!")
+		
 	fullMessage = ct + cipherKey + paddedIV + messageDigest
 
 	if messageVerification(sendPubKey, fullMessage, signedMessage) == False:
