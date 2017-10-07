@@ -5,6 +5,12 @@ import sys
 
 keyType = raw_input("Enter type of key (pem/der): ")
 
+if keyType == "pem" or keyType == "der":
+	pass
+else:
+	print "ERROR: Enter appropriate key type!"
+	sys.exit()
+
 keySize = raw_input("Enter Key Size (1024/2048/3072/4096): ")
 
 if keySize == "1024" or keySize == "2048" or keySize == "3072" or keySize == "4096":

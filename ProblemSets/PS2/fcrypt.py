@@ -7,7 +7,7 @@ Author: Suraj Bhatia
 
 Title: fcrypt.py
 
-Description:
+Description: Python application that can be used to encrypt and sign a file to be sent by email.
 
 Usage: python fcrypt.py -e destination_public_key_filename sender_private_key_filename input_plaintext_file ciphertext_file
 
@@ -358,7 +358,7 @@ def main():
 	# Creating additional data for AES encryption/decryption
 	associatedData = firstName+lastName
 
-	# Retrieve parameter list for encryption/decryption operation from command-line
+	# Retrieve parameters for encryption/decryption operation from command-line
 	paramList, operation  = argsParser()
 
 	# Depending on upon parameter, execute the corresponding operation

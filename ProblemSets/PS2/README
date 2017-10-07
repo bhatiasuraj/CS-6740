@@ -29,14 +29,11 @@ B. ALGORITHMS and MODES
 
   2. We use asymmetric encryption technique RSA for encrypting the symmetric key used in AES encryption.
 
-  3. We use SHA-512 hash function which creates a 512-bit message digest. The hash is calculated for the AES encrypted message and RSA encrypted AES symmetric key needed to decipher it. Hashing is useful
-    
-     to maintain the 'INTEGRITY' of the message.
+  3. We use SHA-512 hash function which creates a 512-bit message digest. The hash is calculated for the AES encrypted message and RSA encrypted AES symmetric key needed to decipher it. Hashing is useful to maintain the 'INTEGRITY' of the message.
 
   4. For padding/unpadding the IV, we using PKCS7 padding technique.
 
   5. We then sign the messge using the sender's private key along with the encrypted AES key, padded IV and calculated hash. This is done for 'NON-REPUDIATION' which is useful for the receiver.
-
 
 
 C. OUTPUT FILE GENERATION
