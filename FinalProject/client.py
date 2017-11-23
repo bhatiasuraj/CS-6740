@@ -18,6 +18,11 @@ import sys
 import time
 import base64
 import argparse
+import sys
+import os
+
+sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/keyGen')
+sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/protobuf')
 
 import messaging_app_pb2
 
@@ -27,6 +32,8 @@ from fcrypt import RSAEncryption
 from fcrypt import RSADecryption
 from fcrypt import messageSigning
 from fcrypt import messageVerification
+from fcrypt import loadRSAPublicKey
+from fcrypt import loadRSAPrivateKey
 
 NOT_REGISTERED = 0
 REGISTERED = 1
@@ -46,8 +53,16 @@ parser.add_argument("-u", "--user",
                     default="Alice",
                     help="name of user")
 
+parser.add_argument("-e", nargs='+', 
+		    help="Encryption Parameter List", 
+		    type=str)
+
 args = parser.parse_args()
 
+destPubKey = loadRSAPublicKey(args.e[0], "pem")
+sendPriKey = loadRSAPrivateKey(args.e[1], "pem")
+
+print destPriKey, sendPubKey
 
 #  Prepare our context and sockets
 context = zmq.Context()
@@ -89,9 +104,10 @@ poll.register(sys.stdin, zmq.POLLIN)
 
 def serverAuthentication():
 
-
+	R1 = os.urandom(16)
+	firstMessage = "LOGIN, "+str(R1)
+	cipherLogin = RSAEncryption(destPubKey, firstMessage)
 	socket.send_multipart([b"LOGIN", username, user.SerializeToString()])
-	
 
 
 while(True):
