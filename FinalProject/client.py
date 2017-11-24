@@ -43,6 +43,8 @@ def serverAuthentication():
 
 	R1 = randint(0, 1000)
 
+	print R1
+
 	firstMessage = "LOGIN, "+str(R1)
 
 	cipherLogin = RSAEncryption(serverPubKey, firstMessage)
@@ -53,20 +55,28 @@ def serverAuthentication():
 
 	print "HEllo: "+str(helloMessage)
 
-	if helloMessage[7:] != R1 + 1:
-		sys.exit("Server Authentication failed!")
+	print helloMessage[0].split(" ")[1]
+
+	R1 += 1
+
+	if int(helloMessage[0].split(" ")[1]) == R1:
+		print "PASS"
 
 	R2 = randint(0, 1000)
 
-	secondMessage = sendPubKey+", "+str(R2)
+	# secondMessage = {"message":sendPubKey, "random":R2}
 
-	secondMessage = {"message":sendPubKey, "random":R2}
+	secondMessage = "I am second message"
 
 	secondCipher = RSAEncryption(serverPubKey, secondMessage)
 
 	secondHash = messageSigning(sendPriKey, secondCipher)
 
 	socket.send_multipart([secondCipher, secondHash, user.SerializeToString()])
+
+	# Accept challenge, solve and send answer, password
+
+	# Start sending LIST command
 
 
 parser = argparse.ArgumentParser()

@@ -44,29 +44,27 @@ def clientAuthentication(serverPubKey, serverPriKey):
 
 	firstMessage = socket.recv_multipart()
 
-	print firstMessage
-
 	ident =  firstMessage[0]
 
-	print firstMessage[1]
-
-	print firstMessage[2]
-
 	loginMessage = RSADecryption(serverPriKey, firstMessage[1])
-
-	print loginMessage
 
 	R1 = loginMessage[7:]
 
 	R1 = int(R1) + 1
 
-	print R1
-
-	socket.send_multipart(ident, "HELLO") 
+	socket.send_multipart([ident, "HELLO "+str(R1)]) 
 
 	secondMessage = socket.recv_multipart()
 
-	print secondMessage
+	clientPublicKey = RSADecryption(serverPriKey, secondMessage[1])
+
+	print clientPublicKey
+
+	#send challenge
+
+	#verify challenge answer, password
+
+	#send WELCOME and TOKENID
 
 
 parser = argparse.ArgumentParser()
@@ -127,8 +125,6 @@ while(True):
     		user.ParseFromString(message[3])
     		print ("Registering %s" % (user.name))
     		socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
-
-		print logged_ident
 
     if len(message) == 4:
     	if message[1] == 'SEND':
