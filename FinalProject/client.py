@@ -20,6 +20,7 @@ import base64
 import argparse
 import sys
 import os
+from random import randint
 
 sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/keyGen')
 sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/protobuf')
@@ -38,6 +39,35 @@ from fcrypt import loadRSAPrivateKey
 NOT_REGISTERED = 0
 REGISTERED = 1
 
+def serverAuthentication():
+
+	R1 = randint(0, 1000)
+
+	firstMessage = "LOGIN, "+str(R1)
+
+	cipherLogin = RSAEncryption(serverPubKey, firstMessage)
+
+	socket.send_multipart([cipherLogin, username])
+
+	helloMessage = socket.recv_multipart()
+
+	print "HEllo: "+str(helloMessage)
+
+	if helloMessage[7:] != R1 + 1:
+		sys.exit("Server Authentication failed!")
+
+	R2 = randint(0, 1000)
+
+	secondMessage = sendPubKey+", "+str(R2)
+
+	secondMessage = {"message":sendPubKey, "random":R2}
+
+	secondCipher = RSAEncryption(serverPubKey, secondMessage)
+
+	secondHash = messageSigning(sendPriKey, secondCipher)
+
+	socket.send_multipart([secondCipher, secondHash, user.SerializeToString()])
+
 
 parser = argparse.ArgumentParser()
 
@@ -53,16 +83,22 @@ parser.add_argument("-u", "--user",
                     default="Alice",
                     help="name of user")
 
-parser.add_argument("-e", nargs='+', 
-		    help="Encryption Parameter List", 
+parser.add_argument("-c", nargs='+', 
+		    help="Client Key List", 
+		    type=str)
+
+parser.add_argument("-skey", nargs='+', 
+		    help="Server Public Key", 
 		    type=str)
 
 args = parser.parse_args()
 
-destPubKey = loadRSAPublicKey(args.e[0], "pem")
-sendPriKey = loadRSAPrivateKey(args.e[1], "pem")
+sendPriKey = loadRSAPrivateKey(args.c[1], "pem")
+sendPubKey = loadRSAPublicKey(args.c[0], "pem")
 
-print destPriKey, sendPubKey
+
+serverPubKey = loadRSAPublicKey(args.skey[0], "pem")
+
 
 #  Prepare our context and sockets
 context = zmq.Context()
@@ -73,6 +109,11 @@ socket.connect("tcp://%s:%s" %(args.server, args.server_port))
 
 # Set username based on args parameters from the command line or default
 username = args.user
+
+uname = raw_input("Enter username: ")
+
+# Make password invisible
+password = raw_input("Enter password: ")
 
 # Initialize state of client
 status = NOT_REGISTERED
@@ -89,26 +130,19 @@ user = messaging_app_pb2.User()
 # Set username field in user message
 user.name = username
 
+serverAuthentication()
+
 # Send REGISTER message to server
 # Use the send_multipart API of ZMQ -- again to illustrate some of the capabilities of ZMQ
 socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
 
-# An alternative would have been to send the usernam directly 
+# An alternative would have been to send the username directly 
 #socket.send_multipart([b"REGISTER", username])
 
 # We are going to wait on both the socket for messages and stdin for command line input
 poll = zmq.Poller()
 poll.register(socket, zmq.POLLIN)
 poll.register(sys.stdin, zmq.POLLIN)
-
-
-def serverAuthentication():
-
-	R1 = os.urandom(16)
-	firstMessage = "LOGIN, "+str(R1)
-	cipherLogin = RSAEncryption(destPubKey, firstMessage)
-	socket.send_multipart([b"LOGIN", username, user.SerializeToString()])
-
 
 while(True):
     sock = dict(poll.poll())
@@ -120,7 +154,7 @@ while(True):
         # If LIST command
         if message[0] == 'LIST' and len(message) > 1:
             d = base64.b64decode(message[1])
-            print("\n  - Currently logged on: %s\n" % (d))
+            print("\n  -            Currently logged on: %s\n" % (d))
             print_prompt(' <- ')
 
         # If MSG 

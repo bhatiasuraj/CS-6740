@@ -23,8 +23,50 @@ import sys
 import time
 import base64
 import argparse
+import sys
+import os
+
+sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/keyGen')
+sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/protobuf')
+
+from fcrypt import AESEncryption
+from fcrypt import AESDecryption
+from fcrypt import RSAEncryption
+from fcrypt import RSADecryption
+from fcrypt import messageSigning
+from fcrypt import messageVerification
+from fcrypt import loadRSAPublicKey
+from fcrypt import loadRSAPrivateKey
 
 import messaging_app_pb2
+
+def clientAuthentication(serverPubKey, serverPriKey):
+
+	firstMessage = socket.recv_multipart()
+
+	print firstMessage
+
+	ident =  firstMessage[0]
+
+	print firstMessage[1]
+
+	print firstMessage[2]
+
+	loginMessage = RSADecryption(serverPriKey, firstMessage[1])
+
+	print loginMessage
+
+	R1 = loginMessage[7:]
+
+	R1 = int(R1) + 1
+
+	print R1
+
+	socket.send_multipart(ident, "HELLO") 
+
+	secondMessage = socket.recv_multipart()
+
+	print secondMessage
 
 
 parser = argparse.ArgumentParser()
@@ -33,7 +75,14 @@ parser.add_argument("-p", "--server-port", type=int,
                     default=5569,
                     help="port number of server to connect to")
 
+parser.add_argument("-s", nargs='+', 
+		    help="Server Key List", 
+		    type=str)
+
 args = parser.parse_args()
+
+serverPubKey = loadRSAPublicKey(args.s[0], "pem")
+serverPriKey = loadRSAPrivateKey(args.s[1], "pem")
 
 #  Prepare our context and sockets
 context = zmq.Context()
@@ -46,10 +95,11 @@ socket.bind("tcp://*:%s" %(args.server_port))
 logged_users = dict()
 logged_ident = dict()
 
+clientAuthentication(serverPubKey, serverPriKey)
+
 # main loop waiting for users messages
 while(True):
 
-    
     message = socket.recv_multipart()
 
     # Remeber that when a ROUTER receives a message the first part is an identifier 
@@ -77,6 +127,8 @@ while(True):
     		user.ParseFromString(message[3])
     		print ("Registering %s" % (user.name))
     		socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
+
+		print logged_ident
 
     if len(message) == 4:
     	if message[1] == 'SEND':
