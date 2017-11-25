@@ -4,7 +4,7 @@
 Simple Chat Program that allows users to register, request the list of registered users,
 and send a message to another user through the server. This code can get you started with
 your CS4740/6740 project.
-Note, that a better implementation would use google protobuf more extensively, with a 
+Note, that a better implementation would use google protobuf more extensively, with a
 single message integrating both control information such as command type and other fields.
 See the other provided tutorial on Google Protobuf.
 Also, note that the services provided by this sample project do not nessarily satify the
@@ -21,6 +21,9 @@ import argparse
 import sys
 import os
 from random import randint
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+import ast
 
 sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/keyGen')
 sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/protobuf')
@@ -41,6 +44,9 @@ REGISTERED = 1
 
 def serverAuthentication():
 
+	
+	
+
 	R1 = randint(0, 1000)
 
 	print R1
@@ -55,28 +61,76 @@ def serverAuthentication():
 
 	print "HEllo: "+str(helloMessage)
 
-	print helloMessage[0].split(" ")[1]
+	print helloMessage[0].split(" ")[1] #prints R1 from server
 
 	R1 += 1
 
 	if int(helloMessage[0].split(" ")[1]) == R1:
 		print "PASS"
 
+	#Generating R2
 	R2 = randint(0, 1000)
+	print 'genereated R2: '+str(R2)
+	#load the public key file to be sent 
+	f = open(senderPubKeyFile, 'r')
+	publicKeyFile = f.read()
+	f.close	
+	
+	secondCipherKey = RSAEncryption(serverPubKey, publicKeyFile)
+	secondCipherNum = RSAEncryption(serverPubKey, str(R2))
 
-	# secondMessage = {"message":sendPubKey, "random":R2}
+	secondMessage = {"key":secondCipherKey, "random":secondCipherNum}
 
-	secondMessage = "I am second message"
+	secondHash = messageSigning(sendPriKey, str(secondMessage))
 
-	secondCipher = RSAEncryption(serverPubKey, secondMessage)
+	socket.send_multipart([str(secondMessage), secondHash, user.SerializeToString()])
 
-	secondHash = messageSigning(sendPriKey, secondCipher)
+	# Accept challenge and decrypt it
+	challenge_dict = socket.recv_multipart()
+	
+	challenge_dict = ast.literal_eval(challenge_dict[0]) #Converting to dict
+	
+	challenge = RSADecryption(sendPriKey, challenge_dict['challenge'])		
+	challenge_R2 = RSADecryption(sendPriKey, challenge_dict['random'])
 
-	socket.send_multipart([secondCipher, secondHash, user.SerializeToString()])
+	#incrementing R2
+	R2 = int(R2)+1
+	print 'R2: '+ str(R2)
+	print 'Challenge R2: '+challenge_R2
+	#Check if R2 is incremented
+	if not R2 == int(challenge_R2):
+		sys.exit("Random number doesnt match") 
 
-	# Accept challenge, solve and send answer, password
+	#finding answer of the challenge
+	challenge_ans = break_hash(challenge)
+	
+	R2 = int(R2)+1
+	thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password}
+	
+	#Encrypt the message and sign it then send
+	
+	thirdMessage = RSAEncryption(serverPubKey, str(thirdMessage))
+	print 'encrypt works'
+	thirdHash = messageSigning(sendPriKey, thirdMessage)
+	print 'hashing works'
+	#Send challenge_and, uname, password to the server for authentication
+	socket.send_multipart([str(thirdMessage), thirdHash])
 
 	# Start sending LIST command
+
+
+#Function used to bruteforce and find answer of the challenge
+def break_hash(challenge_hash):
+	print "bruteforce begins"	
+	for num in range(1,1000000):
+		challenge_digest = hashes.Hash(hashes.SHA1(), backend=default_backend())
+    		challenge_digest.update(str(num))
+		num_hash = challenge_digest.finalize()
+		num_hash = base64.b64encode(num_hash)
+		
+		if num_hash == challenge_hash:
+			return num
+
 
 
 parser = argparse.ArgumentParser()
@@ -93,21 +147,26 @@ parser.add_argument("-u", "--user",
                     default="Alice",
                     help="name of user")
 
-parser.add_argument("-c", nargs='+', 
-		    help="Client Key List", 
+parser.add_argument("-c", nargs='+',
+		    help="Client Key List",
 		    type=str)
 
-parser.add_argument("-skey", nargs='+', 
-		    help="Server Public Key", 
+parser.add_argument("-skey", nargs='+',
+		    help="Server Public Key",
 		    type=str)
 
 args = parser.parse_args()
 
 sendPriKey = loadRSAPrivateKey(args.c[1], "pem")
-sendPubKey = loadRSAPublicKey(args.c[0], "pem")
 
+senderPubKeyFile = args.c[0]
+print senderPubKeyFile
+sendPubKey = loadRSAPublicKey(args.c[0], "der")
 
-serverPubKey = loadRSAPublicKey(args.skey[0], "pem")
+print sendPubKey
+print type(sendPubKey)
+
+serverPubKey = loadRSAPublicKey(args.skey[0], "der")
 
 
 #  Prepare our context and sockets
@@ -124,6 +183,12 @@ uname = raw_input("Enter username: ")
 
 # Make password invisible
 password = raw_input("Enter password: ")
+
+#Hashing the password
+pass_digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+pass_digest.update(password)
+password = pass_digest.finalize()
+password = base64.b64encode(password)
 
 # Initialize state of client
 status = NOT_REGISTERED
@@ -146,7 +211,7 @@ serverAuthentication()
 # Use the send_multipart API of ZMQ -- again to illustrate some of the capabilities of ZMQ
 socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
 
-# An alternative would have been to send the username directly 
+# An alternative would have been to send the username directly
 #socket.send_multipart([b"REGISTER", username])
 
 # We are going to wait on both the socket for messages and stdin for command line input
@@ -167,11 +232,11 @@ while(True):
             print("\n  -            Currently logged on: %s\n" % (d))
             print_prompt(' <- ')
 
-        # If MSG 
+        # If MSG
         if message[0] == 'MSG' and len(message) > 1:
             d = message[1] #base64.b64decode(message[1])
             print("\n  > %s" % (d))
-            print_prompt(' <- ')    
+            print_prompt(' <- ')
 
         # If response to the REGISTER message
         if message[0] == 'REGISTER' and len(message) > 1:
@@ -209,4 +274,3 @@ while(True):
         # SEND command is sent as a three parts ZMQ message, as "SEND destination message"
         elif cmd[0] == 'SEND' and len(cmd) > 2:
             socket.send_multipart([cmd[0], cmd[1], cmd[2]])
-  
