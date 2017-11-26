@@ -45,16 +45,9 @@ from fcrypt import loadRSAPrivateKey
 
 import messaging_app_pb2
 
-def clientAuthentication(serverPubKey, serverPriKey):
+def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 
-	firstMessage = socket.recv_multipart()
-
-	ident =  firstMessage[0]
-
-	loginMessage = RSADecryption(serverPriKey, firstMessage[1])
-
-	R1 = loginMessage[7:]
-
+	#Increment received R1
 	R1 = int(R1) + 1
 
 	socket.send_multipart([ident, "HELLO "+str(R1)])
@@ -95,35 +88,60 @@ def clientAuthentication(serverPubKey, serverPriKey):
 	
 	socket.send_multipart([ident, str(challenge_dict)])
 
-	#verify challenge answer, password
-	thirdMessage = socket.recv_multipart()
-	
-	#Check the signature  
-	#use client pub key to verify the signature
-	if not messageVerification(client_pub_key,thirdMessage[1],thirdMessage[2]):
-		sys.exit("Signature verification failed! Messege not from clint")
-	print 'Signature verification successful'
-	
-	#Decrypting the messege to retrieve the challenge answer, uname, password
-	thirdMessage_dict = RSADecryption(serverPriKey, thirdMessage[1])	
-	
-	challenge_msg_dict = ast.literal_eval(thirdMessage_dict)
-	
-	challenge_ans =  challenge_msg_dict['challenge_ans']
-	uname = challenge_msg_dict['uname']
-	password = challenge_msg_dict['password']
-	random_num = challenge_msg_dict['random']
-	
-	#Increment and Check random number
-	R2 = R2+1
-	if not R2 == random_num:
-		sys.exit("Random number doesnt match")
-	
-	#Username, Password authentication
-	if not password_authenticate(uname, password):
-		return "auth failed no token id generated"		
-		
 
+	attempt_count = 0
+	auth_flag = False
+	while (attempt_count != 3) and (not auth_flag):
+		#verify challenge answer, password
+		thirdMessage = socket.recv_multipart()
+	
+		#Check the signature  
+		#use client pub key to verify the signature
+		if not messageVerification(client_pub_key,thirdMessage[1],thirdMessage[2]):
+			sys.exit("Signature verification failed! Messege not from clint")
+		print 'Signature verification successful'
+	
+		#Decrypting the messege to retrieve the challenge answer, uname, password
+		thirdMessage_dict = RSADecryption(serverPriKey, thirdMessage[1])	
+	
+		challenge_msg_dict = ast.literal_eval(thirdMessage_dict)
+	
+		challenge_ans =  challenge_msg_dict['challenge_ans']
+		uname = challenge_msg_dict['uname']
+		password = challenge_msg_dict['password']
+		random_num = challenge_msg_dict['random']
+	
+		#Increment and Check random number
+		R2 = R2+1
+		print R2
+		print random_num
+		if not R2 == random_num:
+			sys.exit("Random number doesnt match")
+	
+		#Username, Password authentication
+ 
+		if not password_authenticate(uname, password):
+			if attempt_count < 2:			
+				attempt_count += 1	
+				R3 = R2 + 1	
+				auth_msg = {'status': 'FAIL', 'random':R3}	
+				auth_msg = RSAEncryption(client_pub_key, str(auth_msg))
+				socket.send_multipart([ident, auth_msg])
+			elif attempt_count == 2:
+				attempt_count += 1
+				kill_msg = {'status': 'KILL', 'random':R3}
+				kill_msg = RSAEncryption(client_pub_key, str(kill_msg))
+				socket.send_multipart([ident, kill_msg])	 		
+		else:
+			auth_flag = True
+
+	#Kill connection if all authentication attempts exhausted 	
+	if not auth_flag:
+		#return status
+		return 'LOGIN FAIL'	
+	else:
+		return 'LOGIN SUCCESS'
+	
 	#send WELCOME and TOKENID
 
 
@@ -148,7 +166,7 @@ def password_authenticate(uname, password):
 		if uname == login_info[0] and password == login_info[1][:-1]:
 			print 'Authentication Sucessfull!!!'                
 			return True
-	print 'Incorrect credentials. Please try again'
+	print 'Incorrect credentials.'
 	return False
 
 		
@@ -179,46 +197,67 @@ socket.bind("tcp://*:%s" %(args.server_port))
 logged_users = dict()
 logged_ident = dict()
 
-clientAuthentication(serverPubKey, serverPriKey)
+#clientAuthentication(serverPubKey, serverPriKey)
 
 # main loop waiting for users messages
 while(True):
+	print "Server Listening"
+	original_message = socket.recv_multipart()
+	print "original msg: "
+	print original_message
+	username = original_message[2]
 
-    message = socket.recv_multipart()
+	# Remeber that when a ROUTER receives a message the first part is an identifier
+	#  to keep track of who sent the message and be able to send back messages
+	ident = original_message[0]	
 
-    # Remeber that when a ROUTER receives a message the first part is an identifier
-    #  to keep track of who sent the message and be able to send back messages
-    ident = message[0]
+	message = RSADecryption(serverPriKey, original_message[1])
+	message = ast.literal_eval(message)	
+	print 'received msg decrypted:'	
+	print message
+	print type(message)
+	print len(message)
+	
+	if len(message) == 2 and message['message'] == 'LOGIN':	
+		#Initial Login sequence	
+		print 'Initiating authentication'	
+		status = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
+		if status == 'LOGIN FAIL':
+			continue
+		elif status == 'LOGIN SUCCESS':
+			print 'Welcome'
+			#Add to logged users dictionary
+			#Add ident to logged ident dictionary
+			logged_users[username] = ident
+			logged_ident[ident] = username
+			user = messaging_app_pb2.User()
+			user.ParseFromString(original_message[3])
+			print ("Registering %s" % (user.name))
+			
 
-    print("Received [%s]" % (message[1]))
+			#Generate token id
+			#socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
+	'''
+	if len(message) == 2:
+		if message[1]== 'LIST':
 
-    if len(message) == 2:
-    	if message[1]== 'LIST':
+		    # If first seeing this identity sent back ERR message requesting a REGISTER
+			if ident not in logged_ident:
+				socket.send_multipart([ident, b'ERR', b'You need to register first.'])
+			else:
 
-            # If first seeing this identity sent back ERR message requesting a REGISTER
-    		if ident not in logged_ident:
-    			socket.send_multipart([ident, b'ERR', b'You need to register first.'])
-    		else:
+		    		print("List request from user %s" %(logged_ident[ident]))
+				socket.send_multipart([ident, b'LIST', base64.b64encode(str(logged_users))])
 
-	    		print("List request from user %s" %(logged_ident[ident]))
-    			socket.send_multipart([ident, b'LIST', base64.b64encode(str(logged_users))])
 
-    if len(message) == 4:
-    	if message[1] == 'REGISTER':
-    		logged_users[message[2]] = ident
-    		logged_ident[ident] = message[2]
-    		user = messaging_app_pb2.User()
-    		user.ParseFromString(message[3])
-    		print ("Registering %s" % (user.name))
-    		socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
+	if len(message) == 4:
+		if message[1] == 'SEND':
+			# check if destination is registered, retrieve address, and forward
+			if message[2] in logged_users:
+				print "sending message to %s" %(message[2])
 
-    if len(message) == 4:
-    	if message[1] == 'SEND':
-    		# check if destination is registered, retrieve address, and forward
-    		if message[2] in logged_users:
-    			print "sending message to %s" %(message[2])
-
-                # Note that message from ROUTER is prepended by destination ident
-    			socket.send_multipart([logged_users[message[2]], b'MSG', message[3]])
-    		else:
-    			socket.send_multipart([ident, b'ERR', message[2] + b' not registered.'])
+			# Note that message from ROUTER is prepended by destination ident
+				socket.send_multipart([logged_users[message[2]], b'MSG', message[3]])
+			else:
+				socket.send_multipart([ident, b'ERR', message[2] + b' not registered.'])
+'''

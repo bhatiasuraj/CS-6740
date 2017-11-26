@@ -51,11 +51,11 @@ def serverAuthentication():
 
 	print R1
 
-	firstMessage = "LOGIN, "+str(R1)
+	firstMessage = {'message': "LOGIN", 'random': R1}
 
-	cipherLogin = RSAEncryption(serverPubKey, firstMessage)
+	cipherLogin = RSAEncryption(serverPubKey, str(firstMessage))
 
-	socket.send_multipart([cipherLogin, username])
+	socket.send_multipart([cipherLogin, username, user.SerializeToString()])
 
 	helloMessage = socket.recv_multipart()
 
@@ -100,22 +100,55 @@ def serverAuthentication():
 	#Check if R2 is incremented
 	if not R2 == int(challenge_R2):
 		sys.exit("Random number doesnt match") 
+	
+	auth_status = 'fail'
+	while (auth_status == 'fail'):
+		uname = raw_input("Enter username: ")
+		# Make password invisible
+		password = raw_input("Enter password: ")
 
-	#finding answer of the challenge
-	challenge_ans = break_hash(challenge)
-	
-	R2 = int(R2)+1
-	thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password}
-	
-	#Encrypt the message and sign it then send
-	
-	thirdMessage = RSAEncryption(serverPubKey, str(thirdMessage))
-	print 'encrypt works'
-	thirdHash = messageSigning(sendPriKey, thirdMessage)
-	print 'hashing works'
-	#Send challenge_and, uname, password to the server for authentication
-	socket.send_multipart([str(thirdMessage), thirdHash])
+		#Hashing the password
+		pass_digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+		pass_digest.update(password)
+		password = pass_digest.finalize()
+		password = base64.b64encode(password)
 
+
+		#finding answer of the challenge
+		challenge_ans = break_hash(challenge)
+
+		#Incrementing the random number
+		R2 = int(R2)+1
+		print "sent: "+ str(R2)
+		#Create the message dictionary
+		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password}
+
+		#Encrypt the message and sign it then send
+
+		thirdMessage = RSAEncryption(serverPubKey, str(thirdMessage))
+		print 'encrypt works'
+		thirdHash = messageSigning(sendPriKey, thirdMessage)
+		print 'hashing works'
+		#Send challenge_and, uname, password to the server for authentication
+		socket.send_multipart([str(thirdMessage), thirdHash])
+
+		#Receive message and see if server auth success or not 
+		auth_msg = socket.recv_multipart()
+		auth_msg = RSADecryption(sendPriKey, auth_msg[0])
+		auth_msg = ast.literal_eval(auth_msg)
+		print 'auth_msg:  '		
+		print auth_msg
+		print type(auth_msg)
+
+		#Terminate client session after three attempts
+		if auth_msg['status'] == 'FAIL':
+			print 'Incorrect credentials. Please tyr again.'
+		elif auth_msg['status'] == 'KILL':
+			sys.exit('All attempts exhausted. Start new session!!!')
+		elif auth_msg['status'] == 'SUCCESS':
+			print 'Authentication Successful'
+			auth_status = 'pass'			
+			#Receive TokenId 
 	# Start sending LIST command
 
 
@@ -160,11 +193,9 @@ args = parser.parse_args()
 sendPriKey = loadRSAPrivateKey(args.c[1], "pem")
 
 senderPubKeyFile = args.c[0]
-print senderPubKeyFile
+
 sendPubKey = loadRSAPublicKey(args.c[0], "der")
 
-print sendPubKey
-print type(sendPubKey)
 
 serverPubKey = loadRSAPublicKey(args.skey[0], "der")
 
@@ -179,16 +210,6 @@ socket.connect("tcp://%s:%s" %(args.server, args.server_port))
 # Set username based on args parameters from the command line or default
 username = args.user
 
-uname = raw_input("Enter username: ")
-
-# Make password invisible
-password = raw_input("Enter password: ")
-
-#Hashing the password
-pass_digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
-pass_digest.update(password)
-password = pass_digest.finalize()
-password = base64.b64encode(password)
 
 # Initialize state of client
 status = NOT_REGISTERED
@@ -209,7 +230,7 @@ serverAuthentication()
 
 # Send REGISTER message to server
 # Use the send_multipart API of ZMQ -- again to illustrate some of the capabilities of ZMQ
-socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
+#socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
 
 # An alternative would have been to send the username directly
 #socket.send_multipart([b"REGISTER", username])
