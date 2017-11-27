@@ -155,7 +155,6 @@ def serverAuthentication():
 			print 'TokenId: '+ token_id 
 			return token_id
 
-	print "done leaving function"
 #Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
 	print "bruteforce begins"	
@@ -231,7 +230,6 @@ user.name = username
 
 token_id = serverAuthentication()
 
-print 'updated global token: '+ token_id
 # Send REGISTER message to server
 # Use the send_multipart API of ZMQ -- again to illustrate some of the capabilities of ZMQ
 #socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
@@ -245,57 +243,61 @@ poll.register(socket, zmq.POLLIN)
 poll.register(sys.stdin, zmq.POLLIN)
 
 while(True):
-    sock = dict(poll.poll())
+	print "in while loop"
+	sock = dict(poll.poll())
 
-    # if message came on the socket
-    if socket in sock and sock[socket] == zmq.POLLIN:
-        message = socket.recv_multipart()
+	# if message came on the socket
+	if socket in sock and sock[socket] == zmq.POLLIN:
+		message = socket.recv_multipart()
 
-        # If LIST command
-        if message[0] == 'LIST' and len(message) > 1:
-            d = base64.b64decode(message[1])
-            print("\n  -            Currently logged on: %s\n" % (d))
-            print_prompt(' <- ')
+	# If LIST command
+	if message[0] == 'LIST' and len(message) > 1:
+		d = base64.b64decode(message[1])
+		print("\n  -            Currently logged on: %s\n" % (d))
+		print_prompt(' <- ')
 
-        # If MSG
-        if message[0] == 'MSG' and len(message) > 1:
-            d = message[1] #base64.b64decode(message[1])
-            print("\n  > %s" % (d))
-            print_prompt(' <- ')
+	# If MSG
+	if message[0] == 'MSG' and len(message) > 1:
+		d = message[1] #base64.b64decode(message[1])
+		print("\n  > %s" % (d))
+		print_prompt(' <- ')
 
-        # If response to the REGISTER message
-        if message[0] == 'REGISTER' and len(message) > 1:
-            d = message[1] #base64.b64decode(message[1])
-            print("\n <o> %s" % (d))
-            print_prompt(' <- ')
+	# If response to the REGISTER message
+	if message[0] == 'REGISTER' and len(message) > 1:
+		d = message[1] #base64.b64decode(message[1])
+		print("\n <o> %s" % (d))
+		print_prompt(' <- ')
 
-        # If error encountered by server
-        if message[0] == 'ERR' and len(message) > 1:
-            d = message[1] #base64.b64decode(message[1])
-            print("\n <!> %s" % (d))
-            print_prompt(' <- ')
+	# If error encountered by server
+	if message[0] == 'ERR' and len(message) > 1:
+		d = message[1] #base64.b64decode(message[1])
+		print("\n <!> %s" % (d))
+		print_prompt(' <- ')
 
-    # if input on stdin -- process user commands
-    elif sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
-        userin = sys.stdin.readline().splitlines()[0]
-        print_prompt(' <- ')
+	# if input on stdin -- process user commands
+	elif sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
+		userin = sys.stdin.readline().splitlines()[0]
+		print_prompt(' <- ')
 
-        # get the first work on user input
-        cmd = userin.split(' ', 2)
+		# get the first work on user input
+		cmd = userin.split(' ', 2)
 
-        # if it's list send "LIST", note that we should have used google protobuf
-        if cmd[0] == 'LIST':
-            socket.send(b"LIST")
+		# if it's list send "LIST", note that we should have used google protobuf
+		if cmd[0] == 'LIST':
+			socket.send(b"LIST")
 
-        # A user can issue a register command at anytime, although not very useful
-        #  since client sends the REGISTER message automatically when started
-        if cmd[0] == 'REGISTER':
-            user = messaging_app_pb2.User()
-            user.name = username
+		# A user can issue a register command at anytime, although not very useful
+		#  since client sends the REGISTER message automatically when started
+		if cmd[0] == 'REGISTER':
+			user = messaging_app_pb2.User()
+			user.name = username
 
-            # Note that the username is sent both without and with protobuf
-            socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
+			# Note that the username is sent both without and with protobuf
+			socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
 
-        # SEND command is sent as a three parts ZMQ message, as "SEND destination message"
-        elif cmd[0] == 'SEND' and len(cmd) > 2:
-            socket.send_multipart([cmd[0], cmd[1], cmd[2]])
+		# SEND command is sent as a three parts ZMQ message, as "SEND destination message"
+		elif cmd[0] == 'SEND' and len(cmd) > 2:
+			socket.send_multipart([cmd[0], cmd[1], cmd[2]])
+
+
+

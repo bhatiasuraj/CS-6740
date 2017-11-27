@@ -247,6 +247,7 @@ while(True):
 			print logged_ident
 			print 'token_id_dict:'
 			print token_id_dict
+			socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
 			
 			
 	if len(message) == 2 and message['message']== 'LIST':
