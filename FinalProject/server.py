@@ -138,9 +138,9 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 	#Kill connection if all authentication attempts exhausted 	
 	if not auth_flag:
 		#return status
-		return 'LOGIN FAIL'	
+		return 'LOGIN FAIL', None   #return None as challenge answer, if login fail 	
 	else:
-		return 'LOGIN SUCCESS'
+		return 'LOGIN SUCCESS', challenge_ans
 	
 	#send WELCOME and TOKENID
 
@@ -196,6 +196,7 @@ socket.bind("tcp://*:%s" %(args.server_port))
 # store registered users in a dictionary
 logged_users = dict()
 logged_ident = dict()
+token_id_dict = dict()
 
 #clientAuthentication(serverPubKey, serverPriKey)
 
@@ -221,7 +222,7 @@ while(True):
 	if len(message) == 2 and message['message'] == 'LOGIN':	
 		#Initial Login sequence	
 		print 'Initiating authentication'	
-		status = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
+		status, challenge_ans = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
 		if status == 'LOGIN FAIL':
 			continue
 		elif status == 'LOGIN SUCCESS':
@@ -234,9 +235,15 @@ while(True):
 			user.ParseFromString(original_message[3])
 			print ("Registering %s" % (user.name))
 			
-
-			#Generate token id
-			#socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
+			#Generating token id
+			token_id = ident + ':' + str(challenge_ans) 
+			token_id_dict[username] = token_id
+			print 'logged_users:'
+			print logged_users
+			print 'logged_ident:'
+			print logged_ident
+			print 'token_id_dict:'
+			print token_id_dict
 	'''
 	if len(message) == 2:
 		if message[1]== 'LIST':
