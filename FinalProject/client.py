@@ -44,9 +44,6 @@ REGISTERED = 1
 
 def serverAuthentication():
 
-	
-	
-
 	R1 = randint(0, 1000)
 
 	print R1
@@ -140,18 +137,25 @@ def serverAuthentication():
 		print auth_msg
 		print type(auth_msg)
 
+		#Do random number check
+		R3 = R2+1
+		if not R3 == auth_msg['random']:
+			sys.exit("Random number doesnt match")
+
 		#Terminate client session after three attempts
 		if auth_msg['status'] == 'FAIL':
 			print 'Incorrect credentials. Please tyr again.'
 		elif auth_msg['status'] == 'KILL':
 			sys.exit('All attempts exhausted. Start new session!!!')
-		elif auth_msg['status'] == 'SUCCESS':
+		elif auth_msg['status'] == 'WELCOME':
 			print 'Authentication Successful'
 			auth_status = 'pass'			
-			#Receive TokenId 
-	# Start sending LIST command
+			#Receive TokenId
+			token_id = auth_msg['token_id']
+			print 'TokenId: '+ token_id 
+			return token_id
 
-
+	print "done leaving function"
 #Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
 	print "bruteforce begins"	
@@ -199,7 +203,6 @@ sendPubKey = loadRSAPublicKey(args.c[0], "der")
 
 serverPubKey = loadRSAPublicKey(args.skey[0], "der")
 
-
 #  Prepare our context and sockets
 context = zmq.Context()
 
@@ -226,8 +229,9 @@ user = messaging_app_pb2.User()
 # Set username field in user message
 user.name = username
 
-serverAuthentication()
+token_id = serverAuthentication()
 
+print 'updated global token: '+ token_id
 # Send REGISTER message to server
 # Use the send_multipart API of ZMQ -- again to illustrate some of the capabilities of ZMQ
 #socket.send_multipart([b"REGISTER", username, user.SerializeToString()])

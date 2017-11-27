@@ -129,22 +129,27 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 				socket.send_multipart([ident, auth_msg])
 			elif attempt_count == 2:
 				attempt_count += 1
+				R3 = R2 + 1
 				kill_msg = {'status': 'KILL', 'random':R3}
 				kill_msg = RSAEncryption(client_pub_key, str(kill_msg))
 				socket.send_multipart([ident, kill_msg])	 		
 		else:
+			R3 = R2 + 1
+			#Generating token id 
+			token_id = ident + ':' + str(challenge_ans)
+			token_msg = {'status': 'WELCOME', 'random': R3, 'token_id' : token_id}
+			token_msg = RSAEncryption(client_pub_key, str(token_msg))
+			socket.send_multipart([ident, token_msg])			
 			auth_flag = True
 
 	#Kill connection if all authentication attempts exhausted 	
 	if not auth_flag:
-		#return status
-		return 'LOGIN FAIL', None   #return None as challenge answer, if login fail 	
+		#returning status and token_id
+		return 'LOGIN FAIL', None   #Send None as token_id, if login fails 	
 	else:
-		return 'LOGIN SUCCESS', challenge_ans
+		return 'LOGIN SUCCESS', token_id
 	
-	#send WELCOME and TOKENID
-
-
+	
 
 #Function to send the challenge to the client
 def create_challenge(challenge_num):    
@@ -222,11 +227,10 @@ while(True):
 	if len(message) == 2 and message['message'] == 'LOGIN':	
 		#Initial Login sequence	
 		print 'Initiating authentication'	
-		status, challenge_ans = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
+		status, token_id = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
 		if status == 'LOGIN FAIL':
 			continue
 		elif status == 'LOGIN SUCCESS':
-			print 'Welcome'
 			#Add to logged users dictionary
 			#Add ident to logged ident dictionary
 			logged_users[username] = ident
@@ -235,8 +239,7 @@ while(True):
 			user.ParseFromString(original_message[3])
 			print ("Registering %s" % (user.name))
 			
-			#Generating token id
-			token_id = ident + ':' + str(challenge_ans) 
+			 
 			token_id_dict[username] = token_id
 			print 'logged_users:'
 			print logged_users
@@ -244,19 +247,17 @@ while(True):
 			print logged_ident
 			print 'token_id_dict:'
 			print token_id_dict
-	'''
-	if len(message) == 2:
-		if message[1]== 'LIST':
+			
+			
+	if len(message) == 2 and message['message']== 'LIST':
+		# If first seeing this identity sent back ERR message requesting a REGISTER		
+		if ident not in logged_ident:
+			socket.send_multipart([ident, b'ERR', b'You need to register first.'])
+		else:
+			print("List request from user %s" %(logged_ident[ident]))
+			socket.send_multipart([ident, b'LIST', base64.b64encode(str(logged_users))])
 
-		    # If first seeing this identity sent back ERR message requesting a REGISTER
-			if ident not in logged_ident:
-				socket.send_multipart([ident, b'ERR', b'You need to register first.'])
-			else:
-
-		    		print("List request from user %s" %(logged_ident[ident]))
-				socket.send_multipart([ident, b'LIST', base64.b64encode(str(logged_users))])
-
-
+'''
 	if len(message) == 4:
 		if message[1] == 'SEND':
 			# check if destination is registered, retrieve address, and forward
