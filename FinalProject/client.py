@@ -46,7 +46,7 @@ def serverAuthentication():
 
 	R1 = randint(0, 1000)
 
-	print R1
+	print "R1: "+str(R1)
 
 	firstMessage = {'message': "LOGIN", 'random': R1}
 
@@ -56,18 +56,18 @@ def serverAuthentication():
 
 	helloMessage = socket.recv_multipart()
 
-	print "HEllo: "+str(helloMessage)
+	print "HELLO: "+str(helloMessage)
 
-	print helloMessage[0].split(" ")[1] #prints R1 from server
+	print "Incremented R1: "+helloMessage[0].split(" ")[1] #prints R1 from server
 
 	R1 += 1
 
 	if int(helloMessage[0].split(" ")[1]) == R1:
-		print "PASS"
+		print "R1 check PASS"
 
 	#Generating R2
 	R2 = randint(0, 1000)
-	print 'genereated R2: '+str(R2)
+	print 'Genereated R2: '+str(R2)
 	#load the public key file to be sent 
 	f = open(senderPubKeyFile, 'r')
 	publicKeyFile = f.read()
@@ -144,7 +144,7 @@ def serverAuthentication():
 
 		#Terminate client session after three attempts
 		if auth_msg['status'] == 'FAIL':
-			print 'Incorrect credentials. Please tyr again.'
+			print 'Incorrect credentials. Please try again.'
 		elif auth_msg['status'] == 'KILL':
 			sys.exit('All attempts exhausted. Start new session!!!')
 		elif auth_msg['status'] == 'WELCOME':
@@ -154,6 +154,8 @@ def serverAuthentication():
 			token_id = auth_msg['token_id']
 			print 'TokenId: '+ token_id 
 			return token_id
+
+		
 
 #Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
@@ -193,7 +195,7 @@ parser.add_argument("-skey", nargs='+',
 
 args = parser.parse_args()
 
-sendPriKey = loadRSAPrivateKey(args.c[1], "pem")
+sendPriKey = loadRSAPrivateKey(args.c[1], "der")
 
 senderPubKeyFile = args.c[0]
 
@@ -243,7 +245,7 @@ poll.register(socket, zmq.POLLIN)
 poll.register(sys.stdin, zmq.POLLIN)
 
 while(True):
-	print "in while loop"
+	# print "in while loop"
 	sock = dict(poll.poll())
 
 	# if message came on the socket
@@ -284,7 +286,15 @@ while(True):
 
 		# if it's list send "LIST", note that we should have used google protobuf
 		if cmd[0] == 'LIST':
-			socket.send(b"LIST")
+
+			# socket.send(b"LIST")
+
+			listMessage = {"ident": username, "message": "LIST"}
+
+			cipherLogin = RSAEncryption(serverPubKey, str(listMessage))
+
+			socket.send_multipart([cipherLogin, username, user.SerializeToString()])
+			
 
 		# A user can issue a register command at anytime, although not very useful
 		#  since client sends the REGISTER message automatically when started

@@ -45,6 +45,7 @@ from fcrypt import loadRSAPrivateKey
 
 import messaging_app_pb2
 
+
 def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 
 	#Increment received R1
@@ -70,9 +71,9 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 	
 	#Decrypting R2 and incrementing it
 	R2 = RSADecryption(serverPriKey, R2_encrypted)
-	print 'R2 decrypted: '+str(R2)
+	#print 'R2 decrypted: '+str(R2)
 	R2 = int(R2)+1
-	print 'incremented R2: '+str(R2)
+	#print 'incremented R2: '+str(R2)
 	#send challenge
 	challenge_num = random.randint(10000,99999) #generate random 5 digit number	
 	challenge = create_challenge(challenge_num)
@@ -82,7 +83,7 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 	#Encrypting the challenge
 	challenge_cipher = RSAEncryption(client_pub_key, challenge)
 	challenge_random = RSAEncryption(client_pub_key, str(R2))
-	print "challenge encryption sucessfull"
+	#print "challenge encryption sucessfull"
 
 	challenge_dict = {'challenge': challenge_cipher, 'random': challenge_random}
 	
@@ -99,7 +100,7 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 		#use client pub key to verify the signature
 		if not messageVerification(client_pub_key,thirdMessage[1],thirdMessage[2]):
 			sys.exit("Signature verification failed! Messege not from clint")
-		print 'Signature verification successful'
+		#print 'Signature verification successful'
 	
 		#Decrypting the messege to retrieve the challenge answer, uname, password
 		thirdMessage_dict = RSADecryption(serverPriKey, thirdMessage[1])	
@@ -113,8 +114,8 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 	
 		#Increment and Check random number
 		R2 = R2+1
-		print R2
-		print random_num
+		#print R2
+		#print random_num
 		if not R2 == random_num:
 			sys.exit("Random number doesnt match")
 	
@@ -189,7 +190,7 @@ parser.add_argument("-s", nargs='+',
 args = parser.parse_args()
 
 serverPubKey = loadRSAPublicKey(args.s[0], "der")
-serverPriKey = loadRSAPrivateKey(args.s[1], "pem")
+serverPriKey = loadRSAPrivateKey(args.s[1], "der")
 
 #  Prepare our context and sockets
 context = zmq.Context()
@@ -203,26 +204,33 @@ logged_users = dict()
 logged_ident = dict()
 token_id_dict = dict()
 
-#clientAuthentication(serverPubKey, serverPriKey)
+# clientAuthentication(serverPubKey, serverPriKey)
 
 # main loop waiting for users messages
 while(True):
+
 	print "Server Listening"
 	original_message = socket.recv_multipart()
-	print "original msg: "
-	print original_message
-	username = original_message[2]
+	# print "ORIGINAL MESSAGE: "+original_message
+	if len(original_message) == 4:
+		username = original_message[2]
 
 	# Remeber that when a ROUTER receives a message the first part is an identifier
-	#  to keep track of who sent the message and be able to send back messages
+	# to keep track of who sent the message and be able to send back messages
 	ident = original_message[0]	
 
 	message = RSADecryption(serverPriKey, original_message[1])
-	message = ast.literal_eval(message)	
-	print 'received msg decrypted:'	
-	print message
-	print type(message)
-	print len(message)
+	# print "Before message: "+message
+	try:
+		message = ast.literal_eval(message)
+	except ValueError:
+		continue
+	# print message
+	
+	# print 'received msg decrypted:'	
+	# print message
+	# print type(message)
+	# print len(message)
 	
 	if len(message) == 2 and message['message'] == 'LOGIN':	
 		#Initial Login sequence	
