@@ -142,7 +142,7 @@ def serverAuthentication():
 		if not R3 == auth_msg['random']:
 			sys.exit("Random number doesnt match")
 
-		#Terminate client session after three attempts
+		# Terminate client session after three attempts
 		if auth_msg['status'] == 'FAIL':
 			print 'Incorrect credentials. Please try again.'
 		elif auth_msg['status'] == 'KILL':
@@ -244,21 +244,22 @@ poll = zmq.Poller()
 poll.register(socket, zmq.POLLIN)
 poll.register(sys.stdin, zmq.POLLIN)
 
+
 while(True):
 	# print "in while loop"
 	sock = dict(poll.poll())
 
 	# if message came on the socket
 	if socket in sock and sock[socket] == zmq.POLLIN:
-		encrypted_message = socket.recv_multipart()
+		message = socket.recv_multipart()
 
 	# print "\n\n"+str(encrypted_message[1])
 
-	#message = base64.b64decode(encrypted_message[1])
+	# message = base64.b64decode(encrypted_message[1])
 	
-	message = encrypted_message
+	# message = encrypted_message
 	
-	print message
+	# print message
 	
 	# message = RSADecryption(sendPriKey, encrypted_message[1])
 
@@ -269,25 +270,26 @@ while(True):
 		print_prompt(' <- ')
 
 	# If MSG
-	if message[0] == 'MSG' and len(message) > 1:
+	elif message[0] == 'MSG' and len(message) > 1:
 		d = message[1] #base64.b64decode(message[1])
 		print("\n  > %s" % (d))
 		print_prompt(' <- ')
 
 	# If response to the REGISTER message
-	if message[0] == 'REGISTER' and len(message) > 1:
+	elif message[0] == 'REGISTER' and len(message) > 1 and status != REGISTERED:
 		d = message[1] #base64.b64decode(message[1])
 		print("\n <o> %s" % (d))
+		status = REGISTERED
 		print_prompt(' <- ')
 
 	# If error encountered by server
-	if message[0] == 'ERR' and len(message) > 1:
+	elif message[0] == 'ERR' and len(message) > 1:
 		d = message[1] #base64.b64decode(message[1])
 		print("\n <!> %s" % (d))
 		print_prompt(' <- ')
 
 	# if input on stdin -- process user commands
-	if sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
+	elif sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
 		userin = sys.stdin.readline().splitlines()[0]
 		print_prompt(' <- ')
 
@@ -317,6 +319,10 @@ while(True):
 		# SEND command is sent as a three parts ZMQ message, as "SEND destination message"
 		elif cmd[0] == 'SEND' and len(cmd) > 2:
 			socket.send_multipart([cmd[0], cmd[1], cmd[2]])
+
+	else:
+		print "PAGAL"
+		print_prompt(' <- ')
 
 
 
