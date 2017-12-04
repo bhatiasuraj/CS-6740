@@ -275,6 +275,14 @@ while(True):
 			print "IM SENDING REGISTER"
 
 			socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
+
+	elif len(message) == 3 and message['message'] == "LOGOFF":
+		print "I AM LOGGING OFF users"
+		del logged_users[username]
+		del logged_users_keys[username]
+		print username+" has logged off"
+
+		#ident?
 			
 	elif len(message) == 2 and message['message']== 'LIST':
 		# If first seeing this identity sent back ERR message requesting a REGISTER		

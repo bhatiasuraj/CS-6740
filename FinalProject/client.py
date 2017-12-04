@@ -295,6 +295,8 @@ while(True):
 		# get the first work on user input
 		cmd = userin.split(' ', 2)
 
+		print "COMMAND: "+str(cmd[0])
+
 		# if it's list send "LIST", note that we should have used google protobuf
 		if cmd[0] == 'LIST':
 
@@ -319,8 +321,17 @@ while(True):
 		elif cmd[0] == 'SEND' and len(cmd) > 2:
 			socket.send_multipart([cmd[0], cmd[1], cmd[2]])
 
-		elif cmd[0] == 'exit' or cmd[0] == 'quit'or cmd[0] == 'q':
-			sys.exit("EXITED\n")
+		elif cmd[0] == 'exit' or cmd[0] == 'quit' or cmd[0] == 'q':
+			
+			exit_message = {"tokenid": token_id, "message": "LOGOFF", "username": username}
+
+			cipher_exit = RSAEncryption(serverPubKey, str(exit_message))
+
+			socket.send_multipart([cipher_exit, username, user.SerializeToString()])
+
+			socket.close()
+
+			sys.exit()
 
 		else:
 			continue
