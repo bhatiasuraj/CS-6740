@@ -46,7 +46,7 @@ def serverAuthentication():
 
 	R1 = randint(0, 1000)
 
-	print "R1: "+str(R1)
+	#print "R1: "+str(R1)
 
 	firstMessage = {'message': "LOGIN", 'random': R1}
 
@@ -56,22 +56,23 @@ def serverAuthentication():
 
 	helloMessage = socket.recv_multipart()
 
-	print "HELLO: "+str(helloMessage)
+	#print "HELLO: "+str(helloMessage)
 
-	print "Incremented R1: "+helloMessage[0].split(" ")[1] #prints R1 from server
+	#print "Incremented R1: "+helloMessage[0].split(" ")[1] #prints R1 from server
 
 	R1 += 1
 
-	if int(helloMessage[0].split(" ")[1]) == R1:
-		print "R1 check PASS"
+	if int(helloMessage[0].split(" ")[1]) != R1:
+		sys.exit("Verification failed!")
+		#print "R1 check PASS"
 
 	#Generating R2
 	R2 = randint(0, 1000)
-	print 'Genereated R2: '+str(R2)
+	#print 'Genereated R2: '+str(R2)
 	#load the public key file to be sent 
 	f = open(senderPubKeyFile, 'r')
 	publicKeyFile = f.read()
-	f.close	
+	f.close()	
 	
 	secondCipherKey = RSAEncryption(serverPubKey, publicKeyFile)
 	secondCipherNum = RSAEncryption(serverPubKey, str(R2))
@@ -92,8 +93,8 @@ def serverAuthentication():
 
 	#incrementing R2
 	R2 = int(R2)+1
-	print 'R2: '+ str(R2)
-	print 'Challenge R2: '+challenge_R2
+	#print 'R2: '+ str(R2)
+	#print 'Challenge R2: '+challenge_R2
 	#Check if R2 is incremented
 	if not R2 == int(challenge_R2):
 		sys.exit("Random number doesnt match") 
@@ -110,22 +111,21 @@ def serverAuthentication():
 		password = pass_digest.finalize()
 		password = base64.b64encode(password)
 
-
 		#finding answer of the challenge
 		challenge_ans = break_hash(challenge)
 
 		#Incrementing the random number
 		R2 = int(R2)+1
-		print "sent: "+ str(R2)
+		#print "sent: "+ str(R2)
 		#Create the message dictionary
 		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password}
 
 		#Encrypt the message and sign it then send
 
 		thirdMessage = RSAEncryption(serverPubKey, str(thirdMessage))
-		print 'encrypt works'
+		#print 'encrypt works'
 		thirdHash = messageSigning(sendPriKey, thirdMessage)
-		print 'hashing works'
+		#print 'hashing works'
 		#Send challenge_and, uname, password to the server for authentication
 		socket.send_multipart([str(thirdMessage), thirdHash])
 
@@ -133,9 +133,9 @@ def serverAuthentication():
 		auth_msg = socket.recv_multipart()
 		auth_msg = RSADecryption(sendPriKey, auth_msg[0])
 		auth_msg = ast.literal_eval(auth_msg)
-		print 'auth_msg:  '		
-		print auth_msg
-		print type(auth_msg)
+		#print 'auth_msg:  '		
+		#print auth_msg
+		#print type(auth_msg)
 
 		#Do random number check
 		R3 = R2+1
@@ -154,12 +154,11 @@ def serverAuthentication():
 			token_id = auth_msg['token_id']
 			print 'TokenId: '+ token_id 
 			return token_id
-
 		
 
 #Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
-	print "bruteforce begins"	
+	#print "bruteforce begins"	
 	for num in range(1,1000000):
 		challenge_digest = hashes.Hash(hashes.SHA1(), backend=default_backend())
     		challenge_digest.update(str(num))
@@ -199,8 +198,9 @@ sendPriKey = loadRSAPrivateKey(args.c[1], "der")
 
 senderPubKeyFile = args.c[0]
 
-sendPubKey = loadRSAPublicKey(args.c[0], "der")
+# sendPubKey = loadRSAPublicKey(args.c[0], "der")
 
+print senderPubKeyFile
 
 serverPubKey = loadRSAPublicKey(args.skey[0], "der")
 
@@ -250,12 +250,22 @@ while(True):
 
 	# if message came on the socket
 	if socket in sock and sock[socket] == zmq.POLLIN:
-		message = socket.recv_multipart()
+		encrypted_message = socket.recv_multipart()
+
+	# print "\n\n"+str(encrypted_message[1])
+
+	#message = base64.b64decode(encrypted_message[1])
+	
+	message = encrypted_message
+	
+	print message
+	
+	# message = RSADecryption(sendPriKey, encrypted_message[1])
 
 	# If LIST command
 	if message[0] == 'LIST' and len(message) > 1:
 		d = base64.b64decode(message[1])
-		print("\n  -            Currently logged on: %s\n" % (d))
+		print("\n Currently logged on: %s\n" % (d))
 		print_prompt(' <- ')
 
 	# If MSG
@@ -277,7 +287,7 @@ while(True):
 		print_prompt(' <- ')
 
 	# if input on stdin -- process user commands
-	elif sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
+	if sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
 		userin = sys.stdin.readline().splitlines()[0]
 		print_prompt(' <- ')
 
@@ -289,21 +299,20 @@ while(True):
 
 			# socket.send(b"LIST")
 
-			listMessage = {"ident": username, "message": "LIST"}
+			listRequest = {"ident": username, "message": "LIST"}
 
-			cipherLogin = RSAEncryption(serverPubKey, str(listMessage))
+			cipherLogin = RSAEncryption(serverPubKey, str(listRequest))
 
-			socket.send_multipart([cipherLogin, username, user.SerializeToString()])
-			
+			socket.send_multipart([cipherLogin, username, user.SerializeToString()])	
 
 		# A user can issue a register command at anytime, although not very useful
 		#  since client sends the REGISTER message automatically when started
-		if cmd[0] == 'REGISTER':
-			user = messaging_app_pb2.User()
-			user.name = username
+		#if cmd[0] == 'REGISTER':
+		#	user = messaging_app_pb2.User()
+		#	user.name = username
 
 			# Note that the username is sent both without and with protobuf
-			socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
+		#	socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
 
 		# SEND command is sent as a three parts ZMQ message, as "SEND destination message"
 		elif cmd[0] == 'SEND' and len(cmd) > 2:

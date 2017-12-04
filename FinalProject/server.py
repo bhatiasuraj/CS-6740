@@ -148,7 +148,7 @@ def clientAuthentication(serverPubKey, serverPriKey, ident, R1):
 		#returning status and token_id
 		return 'LOGIN FAIL', None   #Send None as token_id, if login fails 	
 	else:
-		return 'LOGIN SUCCESS', token_id
+		return 'LOGIN SUCCESS', token_id, client_pub_key
 	
 	
 
@@ -189,8 +189,8 @@ parser.add_argument("-s", nargs='+',
 
 args = parser.parse_args()
 
-serverPubKey = loadRSAPublicKey(args.s[0], "der")
-serverPriKey = loadRSAPrivateKey(args.s[1], "der")
+serverPubKey = loadRSAPublicKey(args.s[0], "pem")
+serverPriKey = loadRSAPrivateKey(args.s[1], "pem")
 
 #  Prepare our context and sockets
 context = zmq.Context()
@@ -206,6 +206,8 @@ token_id_dict = dict()
 
 # clientAuthentication(serverPubKey, serverPriKey)
 
+# status, token_id, client_pub_key = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
+
 # main loop waiting for users messages
 while(True):
 
@@ -217,30 +219,31 @@ while(True):
 
 	# Remeber that when a ROUTER receives a message the first part is an identifier
 	# to keep track of who sent the message and be able to send back messages
-	ident = original_message[0]	
-
+	ident = original_message[0]
+	
 	message = RSADecryption(serverPriKey, original_message[1])
-	# print "Before message: "+message
+	
 	try:
 		message = ast.literal_eval(message)
 	except ValueError:
 		continue
-	# print message
 	
-	# print 'received msg decrypted:'	
-	# print message
+	print "THE MESSAGE IS: "+str(message)
+
 	# print type(message)
 	# print len(message)
 	
-	if len(message) == 2 and message['message'] == 'LOGIN':	
+	if len(message) == 2 and message['message'] == 'LOGIN':
+		print message['message'] 	
 		#Initial Login sequence	
 		print 'Initiating authentication'	
-		status, token_id = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
+		status, token_id, client_pub_key = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
 		if status == 'LOGIN FAIL':
 			continue
 		elif status == 'LOGIN SUCCESS':
-			#Add to logged users dictionary
-			#Add ident to logged ident dictionary
+			# Add to logged users dictionary
+			# Add ident to logged ident dictionary
+
 			logged_users[username] = ident
 			logged_ident[ident] = username
 			user = messaging_app_pb2.User()
@@ -249,22 +252,33 @@ while(True):
 			
 			 
 			token_id_dict[username] = token_id
-			print 'logged_users:'
-			print logged_users
-			print 'logged_ident:'
-			print logged_ident
-			print 'token_id_dict:'
-			print token_id_dict
+
+			# print 'logged_users:'
+			# print logged_users
+			# print 'logged_ident:'
+			# print logged_ident
+			# print 'token_id_dict:'
+			# print token_id_dict
+
+			# registerMessage = RSAEncryption(client_pub_key, str([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))]))
+
+			# print "\n\n"+str(registerMessage)
+
+			# socket.send_multipart([ident, b'REGISTER', base64.b64encode(str(registerMessage))])
+
+			print "IM SENDING REGISTER"
+
 			socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
 			
-			
-	if len(message) == 2 and message['message']== 'LIST':
+	elif len(message) == 2 and message['message']== 'LIST':
 		# If first seeing this identity sent back ERR message requesting a REGISTER		
 		if ident not in logged_ident:
 			socket.send_multipart([ident, b'ERR', b'You need to register first.'])
 		else:
 			print("List request from user %s" %(logged_ident[ident]))
-			socket.send_multipart([ident, b'LIST', base64.b64encode(str(logged_users))])
+			listReply = RSAEncryption(client_pub_key, str([ident, b'LIST', base64.b64encode(str(logged_users))]))
+			print "\n\n"+str(listReply)
+			socket.send_multipart([ident, b'LIST', base64.b64encode(str(listReply))])
 
 '''
 	if len(message) == 4:
