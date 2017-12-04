@@ -256,7 +256,6 @@ while(True):
 	# If LIST command
 		if message[0] == 'LIST' and len(message) > 1:
 			d = base64.b64decode(message[1])
-			print d
 			d = RSADecryption(sendPriKey, d)
 			print("\n Currently logged on: %s\n" % (d))
 			print_prompt(' <- ')

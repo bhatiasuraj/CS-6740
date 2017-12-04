@@ -203,6 +203,7 @@ socket.bind("tcp://*:%s" %(args.server_port))
 logged_users = dict()
 logged_ident = dict()
 token_id_dict = dict()
+logged_users_keys = dict()
 
 # clientAuthentication(serverPubKey, serverPriKey)
 
@@ -249,6 +250,7 @@ while(True):
 			# Add ident to logged ident dictionary
 
 			logged_users[username] = ident
+			logged_users_keys[username] = client_pub_key
 			logged_ident[ident] = username
 			user = messaging_app_pb2.User()
 			user.ParseFromString(original_message[3])
@@ -280,7 +282,7 @@ while(True):
 			socket.send_multipart([ident, b'ERR', b'You need to register first.'])
 		else:
 			print("List request from user %s" %(logged_ident[ident]))
-			listReply = RSAEncryption(client_pub_key, str(logged_users))
+			listReply = RSAEncryption(logged_users_keys[username], str(logged_users))
 			# print "\n\n"+str(listReply)
 
 			socket.send_multipart([ident, b'LIST', base64.b64encode(str(listReply))])
