@@ -214,7 +214,7 @@ while(True):
 
 	print "Server Listening"
 	original_message = socket.recv_multipart()
-	print "ORIGINAL MESSAGE: "+str(original_message)
+	# print "ORIGINAL MESSAGE: "+str(original_message)
 	if len(original_message) == 4:
 		username = original_message[2]
 
@@ -251,6 +251,7 @@ while(True):
 
 			logged_users[username] = ident
 			logged_users_keys[username] = client_pub_key
+			print logged_users_keys
 			logged_ident[ident] = username
 			user = messaging_app_pb2.User()
 			user.ParseFromString(original_message[3])
@@ -272,12 +273,19 @@ while(True):
 
 			# socket.send_multipart([ident, b'REGISTER', base64.b64encode(str(registerMessage))])
 
-			print "IM SENDING REGISTER"
+			#print "IM SENDING REGISTER"
 
 			socket.send_multipart([ident, b"REGISTER", b'Welcome %s!' %(str(user.name))])
 
 	elif len(message) == 3 and message['message'] == "LOGOFF":
-		print "I AM LOGGING OFF users"
+		#print "I AM LOGGING OFF users"
+		
+		bye_message = {'message':'BYE','tokenid' : message['tokenid']}
+
+		bye_cipher = RSAEncryption(logged_users_keys[username], str(bye_message))
+
+		socket.send_multipart([ident, b'BYE', base64.b64encode(str(bye_cipher))])
+
 		del logged_users[username]
 		del logged_users_keys[username]
 		print username+" has logged off"

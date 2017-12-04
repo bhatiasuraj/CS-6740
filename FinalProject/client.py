@@ -251,6 +251,8 @@ while(True):
 	if socket in sock and sock[socket] == zmq.POLLIN:
 		message = socket.recv_multipart()
 
+	#print message
+
 	try:
 
 	# If LIST command
@@ -279,6 +281,21 @@ while(True):
 			print("\n <!> %s" % (d))
 			print_prompt(' <- ')
 
+		elif message[0] == 'BYE' and len(message) > 1:
+
+			d = base64.b64decode(message[1]) #base64.b64decode(message[1])
+			d = RSADecryption(sendPriKey, d)
+
+			try:
+				d = ast.literal_eval(d)
+			except ValueError:
+				continue
+
+			if d['tokenid'] == token_id:
+				print("Exiting from chat\n")
+				socket.close()
+				sys.exit()
+
 		#else:
 		#	print_prompt(' <- ')
 			
@@ -295,7 +312,7 @@ while(True):
 		# get the first work on user input
 		cmd = userin.split(' ', 2)
 
-		print "COMMAND: "+str(cmd[0])
+		# print "COMMAND: "+str(cmd[0])
 
 		# if it's list send "LIST", note that we should have used google protobuf
 		if cmd[0] == 'LIST':
@@ -328,10 +345,6 @@ while(True):
 			cipher_exit = RSAEncryption(serverPubKey, str(exit_message))
 
 			socket.send_multipart([cipher_exit, username, user.SerializeToString()])
-
-			socket.close()
-
-			sys.exit()
 
 		else:
 			continue
