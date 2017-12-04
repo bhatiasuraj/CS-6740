@@ -213,28 +213,32 @@ while(True):
 
 	print "Server Listening"
 	original_message = socket.recv_multipart()
-	# print "ORIGINAL MESSAGE: "+original_message
+	print "ORIGINAL MESSAGE: "+str(original_message)
 	if len(original_message) == 4:
 		username = original_message[2]
 
 	# Remeber that when a ROUTER receives a message the first part is an identifier
 	# to keep track of who sent the message and be able to send back messages
 	ident = original_message[0]
+	print ident
 	
-	message = RSADecryption(serverPriKey, original_message[1])
-	
+	try:
+		message = RSADecryption(serverPriKey, original_message[1])
+		print message
+	except ValueError:
+		continue
 	try:
 		message = ast.literal_eval(message)
 	except ValueError:
 		continue
 	
-	print "THE MESSAGE IS: "+str(message)
+	# print "THE MESSAGE IS: "+str(message)
 
 	# print type(message)
 	# print len(message)
 	
 	if len(message) == 2 and message['message'] == 'LOGIN':
-		print message['message'] 	
+		#print message['message'] 	
 		#Initial Login sequence	
 		print 'Initiating authentication'	
 		status, token_id, client_pub_key = clientAuthentication(serverPubKey, serverPriKey, ident, message['random']) #passing R1
@@ -276,8 +280,9 @@ while(True):
 			socket.send_multipart([ident, b'ERR', b'You need to register first.'])
 		else:
 			print("List request from user %s" %(logged_ident[ident]))
-			listReply = RSAEncryption(client_pub_key, str([ident, b'LIST', base64.b64encode(str(logged_users))]))
-			print "\n\n"+str(listReply)
+			listReply = RSAEncryption(client_pub_key, str(logged_users))
+			# print "\n\n"+str(listReply)
+
 			socket.send_multipart([ident, b'LIST', base64.b64encode(str(listReply))])
 
 '''

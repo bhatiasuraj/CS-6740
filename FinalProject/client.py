@@ -198,9 +198,7 @@ sendPriKey = loadRSAPrivateKey(args.c[1], "der")
 
 senderPubKeyFile = args.c[0]
 
-# sendPubKey = loadRSAPublicKey(args.c[0], "der")
-
-print senderPubKeyFile
+#sendPubKey = loadRSAPublicKey(args.c[0], "der")
 
 serverPubKey = loadRSAPublicKey(args.skey[0], "der")
 
@@ -246,50 +244,52 @@ poll.register(sys.stdin, zmq.POLLIN)
 
 
 while(True):
-	# print "in while loop"
-	sock = dict(poll.poll())
 
+	sock = dict(poll.poll())
+	
 	# if message came on the socket
 	if socket in sock and sock[socket] == zmq.POLLIN:
 		message = socket.recv_multipart()
 
-	# print "\n\n"+str(encrypted_message[1])
-
-	# message = base64.b64decode(encrypted_message[1])
-	
-	# message = encrypted_message
-	
-	# print message
-	
-	# message = RSADecryption(sendPriKey, encrypted_message[1])
+	try:
 
 	# If LIST command
-	if message[0] == 'LIST' and len(message) > 1:
-		d = base64.b64decode(message[1])
-		print("\n Currently logged on: %s\n" % (d))
-		print_prompt(' <- ')
+		if message[0] == 'LIST' and len(message) > 1:
+			d = base64.b64decode(message[1])
+			print d
+			d = RSADecryption(sendPriKey, d)
+			print("\n Currently logged on: %s\n" % (d))
+			print_prompt(' <- ')
 
 	# If MSG
-	elif message[0] == 'MSG' and len(message) > 1:
-		d = message[1] #base64.b64decode(message[1])
-		print("\n  > %s" % (d))
-		print_prompt(' <- ')
+		elif message[0] == 'MSG' and len(message) > 1:
+			d = message[1] #base64.b64decode(message[1])
+			print("\n  > %s" % (d))
+			print_prompt(' <- ')
 
 	# If response to the REGISTER message
-	elif message[0] == 'REGISTER' and len(message) > 1 and status != REGISTERED:
-		d = message[1] #base64.b64decode(message[1])
-		print("\n <o> %s" % (d))
-		status = REGISTERED
-		print_prompt(' <- ')
+		elif message[0] == 'REGISTER' and len(message) > 1 and status != REGISTERED:
+			d = message[1] #base64.b64decode(message[1])
+			print("\n <o> %s" % (d))
+			status = REGISTERED
+			print_prompt(' <- ')
 
 	# If error encountered by server
-	elif message[0] == 'ERR' and len(message) > 1:
-		d = message[1] #base64.b64decode(message[1])
-		print("\n <!> %s" % (d))
-		print_prompt(' <- ')
+		elif message[0] == 'ERR' and len(message) > 1:
+			d = message[1] #base64.b64decode(message[1])
+			print("\n <!> %s" % (d))
+			print_prompt(' <- ')
+
+		#else:
+		#	print_prompt(' <- ')
+			
+
+	except IndexError:
+		continue
+
 
 	# if input on stdin -- process user commands
-	elif sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
+	if sys.stdin.fileno() in sock and sock[0] == zmq.POLLIN:
 		userin = sys.stdin.readline().splitlines()[0]
 		print_prompt(' <- ')
 
@@ -309,20 +309,25 @@ while(True):
 
 		# A user can issue a register command at anytime, although not very useful
 		#  since client sends the REGISTER message automatically when started
-		#if cmd[0] == 'REGISTER':
-		#	user = messaging_app_pb2.User()
-		#	user.name = username
+		elif cmd[0] == 'REGISTER':
+			user = messaging_app_pb2.User()
+			user.name = username
 
 			# Note that the username is sent both without and with protobuf
-		#	socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
+			socket.send_multipart([b"REGISTER", username, user.SerializeToString()])
 
 		# SEND command is sent as a three parts ZMQ message, as "SEND destination message"
 		elif cmd[0] == 'SEND' and len(cmd) > 2:
 			socket.send_multipart([cmd[0], cmd[1], cmd[2]])
 
-	else:
-		print "PAGAL"
-		print_prompt(' <- ')
+		elif cmd[0] == 'exit' or cmd[0] == 'quit'or cmd[0] == 'q':
+			sys.exit("EXITED\n")
+
+		else:
+			continue
+			#message = ''
+
+	
 
 
 
