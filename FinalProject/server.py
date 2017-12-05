@@ -214,7 +214,7 @@ while(True):
 
 	print "Server Listening"
 	original_message = socket.recv_multipart()
-	# print "ORIGINAL MESSAGE: "+str(original_message)
+	print "ORIGINAL MESSAGE: "+str(original_message)
 	if len(original_message) == 4:
 		username = original_message[2]
 
@@ -233,7 +233,7 @@ while(True):
 	except ValueError:
 		continue
 	
-	# print "THE MESSAGE IS: "+str(message)
+	print "THE MESSAGE IS: "+str(message)
 
 	# print type(message)
 	# print len(message)
@@ -259,7 +259,7 @@ while(True):
 			
 			 
 			token_id_dict[username] = token_id
-
+			
 			# print 'logged_users:'
 			# print logged_users
 			# print 'logged_ident:'
@@ -280,7 +280,7 @@ while(True):
 	elif len(message) == 3 and message['message'] == "LOGOFF":
 		#print "I AM LOGGING OFF users"
 		
-		bye_message = {'message':'BYE','tokenid' : message['tokenid']}
+		bye_message = {'message':'BYE', 'tokenid':message['tokenid']}
 
 		bye_cipher = RSAEncryption(logged_users_keys[username], str(bye_message))
 
@@ -288,6 +288,7 @@ while(True):
 
 		del logged_users[username]
 		del logged_users_keys[username]
+		
 		print username+" has logged off"
 
 		#ident?
@@ -298,12 +299,12 @@ while(True):
 			socket.send_multipart([ident, b'ERR', b'You need to register first.'])
 		else:
 			print("List request from user %s" %(logged_ident[ident]))
+
 			listReply = RSAEncryption(logged_users_keys[username], str(logged_users))
-			# print "\n\n"+str(listReply)
 
 			socket.send_multipart([ident, b'LIST', base64.b64encode(str(listReply))])
 
-'''
+
 	if len(message) == 4:
 		if message[1] == 'SEND':
 			# check if destination is registered, retrieve address, and forward
@@ -314,4 +315,4 @@ while(True):
 				socket.send_multipart([logged_users[message[2]], b'MSG', message[3]])
 			else:
 				socket.send_multipart([ident, b'ERR', message[2] + b' not registered.'])
-'''
+

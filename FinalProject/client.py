@@ -154,6 +154,9 @@ def serverAuthentication():
 			token_id = auth_msg['token_id']
 			print 'TokenId: '+ token_id 
 			return token_id
+
+#def c2c_authentication():
+
 		
 
 #Function used to bruteforce and find answer of the challenge
@@ -251,7 +254,7 @@ while(True):
 	if socket in sock and sock[socket] == zmq.POLLIN:
 		message = socket.recv_multipart()
 
-	#print message
+	print message
 
 	try:
 
@@ -259,6 +262,7 @@ while(True):
 		if message[0] == 'LIST' and len(message) > 1:
 			d = base64.b64decode(message[1])
 			d = RSADecryption(sendPriKey, d)
+			list_users = ast.literal_eval(d)
 			print("\n Currently logged on: %s\n" % (d))
 			print_prompt(' <- ')
 
@@ -295,9 +299,6 @@ while(True):
 				print("Exiting from chat\n")
 				socket.close()
 				sys.exit()
-
-		#else:
-		#	print_prompt(' <- ')
 			
 
 	except IndexError:
@@ -336,6 +337,22 @@ while(True):
 
 		# SEND command is sent as a three parts ZMQ message, as "SEND destination message"
 		elif cmd[0] == 'SEND' and len(cmd) > 2:
+
+			# Perform client-client authentication with server
+
+			# def c2c_authentication()
+			print "I am sending"
+
+			if cmd[1] in list_users:
+				print cmd[1]+" is in list with address "+str(list_users[cmd[1]])
+
+				socket.send_multipart([list_users[cmd[1]], b'HI', b'BYE'])
+
+				# socket.send_multipart([list_users[cmd[1]], cmd[0], cmd[1], cmd[2]])
+
+			else:
+				print "User not in list, perform LIST operation again!"
+
 			socket.send_multipart([cmd[0], cmd[1], cmd[2]])
 
 		elif cmd[0] == 'exit' or cmd[0] == 'quit' or cmd[0] == 'q':
