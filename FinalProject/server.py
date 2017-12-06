@@ -214,7 +214,7 @@ while(True):
 
 	print "Server Listening"
 	original_message = socket.recv_multipart()
-	print "ORIGINAL MESSAGE: "+str(original_message)
+	#print "ORIGINAL MESSAGE: "+str(original_message)
 	if len(original_message) == 4:
 		username = original_message[2]
 
@@ -225,7 +225,7 @@ while(True):
 	
 	try:
 		message = RSADecryption(serverPriKey, original_message[1])
-		print message
+		#print message
 	except ValueError:
 		continue
 	try:

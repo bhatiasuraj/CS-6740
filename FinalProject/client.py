@@ -157,6 +157,7 @@ def serverAuthentication():
 
 #def c2c_authentication():
 
+
 		
 
 #Function used to bruteforce and find answer of the challenge
@@ -254,7 +255,7 @@ while(True):
 	if socket in sock and sock[socket] == zmq.POLLIN:
 		message = socket.recv_multipart()
 
-	print message
+	#print message
 
 	try:
 
@@ -300,7 +301,6 @@ while(True):
 				socket.close()
 				sys.exit()
 			
-
 	except IndexError:
 		continue
 
@@ -340,11 +340,12 @@ while(True):
 
 			# Perform client-client authentication with server
 
-			# def c2c_authentication()
-			print "I am sending"
+			#c2c_authentication()
+
+			print list_users['Alice']
 
 			if cmd[1] in list_users:
-				print cmd[1]+" is in list with address "+str(list_users[cmd[1]])
+				print cmd[1]+" is in list with address "+str((list_users[cmd[1]]))
 
 				socket.send_multipart([list_users[cmd[1]], b'HI', b'BYE'])
 
