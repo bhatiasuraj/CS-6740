@@ -1,26 +1,15 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/python
 
-'''
-
-Author: Suraj Bhatia
-
-Title: fcrypt.py
-
-Description: Python application that can be used to encrypt and sign a file to be sent by email.
-
-Usage: python fcrypt.py -e destination_public_key_filename sender_private_key_filename input_plaintext_file ciphertext_file
-
-       python fcrypt.py -d destination_private_key_filename sender_public_key_filename ciphertext_file output_plaintext_file
-
-'''
 
 # Cryptography modules
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes, hmac, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.asymmetric import padding, rsa, dh, ec
 from cryptography.hazmat.primitives import padding as paddingFunction
+
+
 
 # Python modules
 from socket import *
@@ -175,202 +164,58 @@ def loadRSAPrivateKey(privateKeyFile, keyType):
 		sys.exit("ERROR: No such private key file, verify arguments again!")
 		
 	return privateKey
+'''
+def dh_keygen():
 
-def argsParser():
+	parameters = dh.generate_parameters(generator=2, key_size=512,
+                                     backend=default_backend())
 
-	# Command-line arguments parser
-	parser = argparse.ArgumentParser()
-
-	parser.add_argument("-e", nargs='+', help="Encryption Parameter List", type=str)
-	parser.add_argument("-d", nargs='+', help="Decryption Parameter List", type=str)
-
-	args = parser.parse_args()
-
-	if args.e:
-
-		if args.e != 'None' and len(args.e) == 4:
-			return args.e, "e"
-		else:
-			print "ERROR: Four paramaters required, try again."
-			sys.exit()
-
-	elif args.d:
-		if args.d != 'None' and len(args.d) == 4:
-			return args.d, "d"
-		else:
-			print "ERROR: Four paramaters required, try again."
-			sys.exit()
-
-def Encryption(paramList, operation, firstName, lastName, associatedData):
-
-	# Find out type of RSA keys generated
-	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
+	private_key = parameters.generate_private_key()
 	
-	# Check for PEM and DER keys only
-	if keyType == 'pem' or keyType == 'der':
-		pass
-	else:
-		sys.exit("ERROR: Unsupported key file type, please try again!")
+	public_key = private_key.public_key()
 
-	# Parse command-line arguments
-	destPubKey = loadRSAPublicKey(paramList[0], keyType)
-	sendPriKey = loadRSAPrivateKey(paramList[1], keyType)
-	ptFile = paramList[2]
-	ctFile = paramList[3]
+	public_key = base64.b64encode(public_key.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo))
 
-	# Create random 256-bit AES key and 128-bit Initialization Vector
-	key = os.urandom(32)
-	iv = os.urandom(16)
+	return private_key, public_key
 
-	# Read data from input plaintext file to be encrypted
-	try:
-		pt = open(ptFile, "rb").read()
-	except IOError:
-		sys.exit("ERROR: No such file/directory, verify arguments again!")
+def dh_shared_keygen(my_private_key, their_public_key):
 
-	# Open output file where encrypted data will be stored and sent
-	try:
-		outputFile = open(ctFile, "wb")
-	except IOError:
-		sys.exit("ERROR: No such file/directory, verify arguments again!")
-		
-	# Generate cipher text and tag data from AES	
-	ct, tag = AESEncryption(key, associatedData, iv, pt)
+	their_public_key = base64.b64decode(their_public_key)
 
-	# Add ciphertext and identifier in output file
-	outputFile.write(ct)
-	outputFile.write(firstName)
+	their_public_key = serialization.load_der_public_key(data=their_public_key, backend=default_backend())
 
-	# Encrypt AES key using RSA Encryption using destination's public key
-	cipherKey = RSAEncryption(destPubKey, key)
+	shared_key = my_private_key.exchange(their_public_key)
 
-	# Padd the IV
-	paddedIV = dataPadding(iv)
+	return shared_key
 
-	# Add encrypted key, padded IV and second identifer to output file
-	outputFile.write(cipherKey+paddedIV)
-	outputFile.write(lastName)
+'''
 
-	# Hash the cipher text and encrypted key using the AES symmetric key
-	messageDigest = HASHFunction(ct+cipherKey, key)
+def dh_keygen():
 
-	# Add hashed message and first identifer to output file
-	outputFile.write(messageDigest +base64.b64encode(str(len(cipherKey))))
-	outputFile.write(firstName)
-
-	# Create a message with all information to be signed
-	fullMessage = ct + cipherKey + paddedIV + messageDigest
-	signedMessage = messageSigning(sendPriKey, fullMessage)
-
-	# Add signed message, second identifer and tag data to output file
-	outputFile.write(signedMessage)
-	outputFile.write(lastName)
-	outputFile.write(tag)
-	outputFile.close()
-
-def Decryption(paramList, operation, firstName, lastName, associatedData):
-
-	# Find out type of RSA keys generated
-	keyType = os.path.splitext(paramList[0])[1].split('.')[1]
+	private_key = ec.generate_private_key(ec.SECP384R1(), default_backend())
 	
-	# Check for PEM and DER keys only
-	if keyType == 'pem' or keyType == 'der':
-		pass
-	else:
-		sys.exit("ERROR: Unsupported key file type, please try again!")
+	public_key = private_key.public_key()
 
-	# Parse command-line arguments
-	destPriKey = loadRSAPrivateKey(paramList[0], keyType)
-	sendPubKey = loadRSAPublicKey(paramList[1], keyType)
-	ctFile = paramList[2]
-	ptFile = paramList[3]
+	public_key = base64.b64encode(public_key.public_bytes(encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo))
 
-	# Open output file where decrypted data will be stored
-	try:
-		output = open(ctFile, 'rb').read()
-	except IOError:
-		sys.exit("ERROR: No such file/directory, verify arguments again!")
-		
-	# Using first identifier, split the encrypted message
-	try:
-		ct, cipherKey_paddedIV_messageDigest_cipherKeyLength, signedMessage_tag = output.split(firstName)
-	except ValueError:
-		sys.exit("ERROR: Decryption failed!")
-		
-	# Using second identifier, split one part
-	try:
-		cipherKey_paddedIV, messageDigest_cipherKeyLength = cipherKey_paddedIV_messageDigest_cipherKeyLength.split(lastName)
-	except ValueError:
-		sys.exit("ERROR: Decryption failed!")
-		
-	# Get the hashed message of size 512-bits
-	messageDigest = messageDigest_cipherKeyLength[0:64]
-	
-	# Get length of encrypted key and from that the key and padded IV
-	cipherKeyLength = base64.b64decode(messageDigest_cipherKeyLength[64:])
-	cipherKey = cipherKey_paddedIV[0:int(cipherKeyLength)]
-	paddedIV = cipherKey_paddedIV[int(cipherKeyLength):]
+	return private_key, public_key
 
-	# Get and verify the signed message
-	try:
-		signedMessage, tag = signedMessage_tag.split(lastName)
-	except ValueError:
-		sys.exit("ERROR: Decryption failed!")
-		
-	fullMessage = ct + cipherKey + paddedIV + messageDigest
+def dh_shared_keygen(my_private_key, their_public_key):
 
-	if messageVerification(sendPubKey, fullMessage, signedMessage) == False:
-		sys.exit("ERROR: Signature verification failed, try again!")
+	their_public_key = base64.b64decode(their_public_key)
 
-	# Decrypt the AES key with destination's private key
-	key = RSADecryption(destPriKey, cipherKey)
+	their_public_key = serialization.load_der_public_key(data=their_public_key, backend=default_backend())
 
-	# Verify the hash created using AES key
-	hashVerification = HASHFunction(ct+cipherKey, key)
+	shared_key = my_private_key.exchange(ec.ECDH(), their_public_key)
 
-	if hashVerification != messageDigest:
-		sys.exit("ERROR: Hash values do not match.")
+	return shared_key
 
-	# Unpadd the IV
-	iv = dataUnpadding(paddedIV)
-	
-	# Decrypt using AES the actual data
-	try:
-		pt = AESDecryption(key, associatedData, iv, tag, ct)
-	
-	except ValueError:
-		sys.exit("ERROR: Invalid key size (512) for AES")
-		
-	except cryptography.exceptions.InvalidTag:
-		sys.exit("ERROR: Invalid tag!")
-	
-	# Write the decrypted message to the output file	
-	outputFile = open(ptFile, "wb")
-	outputFile.write(pt)
-	outputFile.close()
 
-def main():
 
-	# Create unique identifiers which will help in encryption/decryption process
-	firstName = base64.b64decode('z4DPhc+BzrHPgA====') 	# which is = πυραπ  (Suraj in Greek letters)
-	lastName = base64.b64decode('zrLOt86xz4TOuc6x==')  	# which is = βηατια (Bhatia in Greek letters)
 
-	# Creating additional data for AES encryption/decryption
-	associatedData = firstName+lastName
 
-	# Retrieve parameters for encryption/decryption operation from command-line
-	paramList, operation  = argsParser()
 
-	# Depending on upon parameter, execute the corresponding operation
-	if operation == 'e':
-		Encryption(paramList, operation, firstName, lastName, associatedData)
 
-	elif operation == 'd':
-		Decryption(paramList, operation, firstName, lastName, associatedData)
 
-	else:
-		sys.exit("Invalid operation parameter, try again.")
 
-if __name__ == "__main__":
-    main()
 

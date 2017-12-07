@@ -21,6 +21,7 @@ import base64
 import argparse
 import sys
 import os
+import cPickle
 from random import randint
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -37,6 +38,8 @@ from fcrypt import messageSigning
 from fcrypt import messageVerification
 from fcrypt import loadRSAPublicKey
 from fcrypt import loadRSAPrivateKey
+from fcrypt import dh_keygen
+from fcrypt import *
 
 def prompt():
 
@@ -116,12 +119,18 @@ def serverAuthentication(addr, socket):
 		#Incrementing the random number
 		R2 = int(R2)+1
 
-		#Create the message dictionary
-		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password}
+		# Create DH keys
 
+		dh_private_key, dh_public_key = dh_keygen()
+
+
+		#Create the message dictionary
+		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password, 'dh_key': dh_public_key}
+
+		thirdMessage = cPickle.dumps(thirdMessage)
 		#Encrypt the message and sign it then send
 
-		thirdMessage = RSAEncryption(serverPubKey, str(thirdMessage))
+		thirdMessage = RSAEncryption(serverPubKey, thirdMessage)
 
 		thirdHash = messageSigning(sendPriKey,thirdMessage)
 
@@ -130,23 +139,45 @@ def serverAuthentication(addr, socket):
 
 		#Receive message and see if server auth success or not 
 		auth_msg = socket.recvfrom(65536)
-		auth_msg = RSADecryption(sendPriKey, auth_msg[0])
-		auth_msg = ast.literal_eval(auth_msg)
 
-		R3 = R2+1
-		if not R3 == auth_msg['random']:
-			sys.exit("Random number doesnt match")
+		#print auth_msg		
+
+		try:
+			auth_msg_dict = auth_msg[0]
+			auth_msg_dict = auth_msg_dict.split("delimiter")[0]
+			auth_msg_dict = RSADecryption(sendPriKey, auth_msg_dict)
+			print auth_msg_dict
+			auth_msg_dict = ast.literal_eval(auth_msg_dict)
+
+			R3 = R2+1
+			if not R3 == auth_msg_dict['random']:
+				sys.exit("Random number doesnt match")
+
+		except AttributeError:
+			auth_msg_dict = RSADecryption(sendPriKey, auth_msg)
+			auth_msg_dict = ast.literal_eval(auth_msg)
+
+			R3 = R2+1
+			if not R3 == auth_msg_dict['random']:
+				sys.exit("Random number doesnt match")
 
 		# Terminate client session after three attempts
-		if auth_msg['status'] == 'FAIL':
+		if auth_msg_dict['status'] == 'FAIL':
 			print 'Incorrect credentials. Please try again.'
-		elif auth_msg['status'] == 'KILL':
+		elif auth_msg_dict['status'] == 'KILL':
 			sys.exit('All attempts exhausted. Start new session!!!')
-		elif auth_msg['status'] == 'WELCOME':
+		elif auth_msg_dict['status'] == 'WELCOME':
 			print 'Authentication Successful'
 			auth_status = 'pass'			
 			#Receive TokenId
-			token_id = auth_msg['token_id']
+			token_id = auth_msg_dict['token_id']
+
+			server_dh_public_key = auth_msg[0].split("delimiter")[1]
+
+			shared_key = dh_shared_keygen(dh_private_key, server_dh_public_key)
+
+			print base64.b64encode(shared_key)
+
 			print 'TokenId: '+ token_id 
 			return token_id
 
@@ -290,10 +321,10 @@ try:
 		readSocket, writeSocket, errorSocket = select.select(socketList, [], [])
 
 		for sock in readSocket:
-			if sock == clientSocket:
+			if sock == client_socket:
 				# Keep checking for received messages from server or other users
 				try:
-					data = clientSocket.recv(65535)
+					data = client_socket.recv(65535)
 
 				except error:
 					break
@@ -315,12 +346,12 @@ try:
 
 							# Handle socket receiver buffer overflow
 							if len(str(m)) <= 65494:
-								clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+str(m)), receiver)
+								client_socket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+str(m)), receiver)
 
 							# Send in chunks if total message larger > 65535
 							else:
-								clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[0:65494]), receiver)
-								clientSocket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[65494:]), receiver)
+								client_socket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[0:65494]), receiver)
+								client_socket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[65494:]), receiver)
 
 						# Do not send empty messages
 						except IndexError:
@@ -347,8 +378,8 @@ try:
 
 				# Handle user exit
 				if message == "exit":
-					sendToServer(message, clientSocket, username, addr)
-					clientSocket.close()
+					sendToServer(message, client_socket, username, server_addr)
+					client_socket.close()
 					sys.exit(0)
 
 				# Blank command goes to next line
@@ -358,7 +389,7 @@ try:
 				# Check for message format
 				elif message.split()[0] == "send":
 					try:
-						sendToServer(message, clientSocket, username, addr)
+						sendToServer(message, client_socket, username, server_addr)
 
 					except IndexError:
 						print "+> Incorrect send format, please try again."
@@ -366,7 +397,7 @@ try:
 
 				# Request from server list of users logged in to chat
 				elif message == "list":
-					sendToServer(message, clientSocket, username, addr)
+					sendToServer(message, client_socket, username, server_addr)
 					prompt()
 
 				# Handle invalid chat commands
@@ -376,8 +407,8 @@ try:
 
 # Handle keyboard interrup, notify server and exit from chat gracefully
 except KeyboardInterrupt:
-	sendToServer("exit", clientSocket, username, addr)
-	clientSocket.close()
+	sendToServer("exit", client_socket, username, server_addr)
+	client_socket.close()
 	sys.exit(0)
 
 

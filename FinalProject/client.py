@@ -117,8 +117,13 @@ def serverAuthentication():
 		#Incrementing the random number
 		R2 = int(R2)+1
 		#print "sent: "+ str(R2)
+
+		# Create DH keys
+
+		
+
 		#Create the message dictionary
-		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password}
+		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password, 'dh_key': dh_public_key}
 
 		#Encrypt the message and sign it then send
 

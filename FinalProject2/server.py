@@ -22,6 +22,7 @@ import base64
 import argparse
 import sys
 import os
+import cPickle
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 import random
@@ -39,6 +40,8 @@ from fcrypt import messageSigning
 from fcrypt import messageVerification
 from fcrypt import loadRSAPublicKey
 from fcrypt import loadRSAPrivateKey
+from fcrypt import dh_keygen
+from fcrypt import *
 
 def clientAuthentication(socket, addr, R1):
 
@@ -49,8 +52,6 @@ def clientAuthentication(socket, addr, R1):
 
 	secondMessage = socket.recv(65536)
 
-	print secondMessage
-	
 	#converting str to dict
 	secondMessage = ast.literal_eval(secondMessage)
 	
@@ -61,8 +62,6 @@ def clientAuthentication(socket, addr, R1):
 	del secondMessage['hash']
 
 	msg_dict_verify = secondMessage
-
-	print msg_dict_verify
 	
 	#Decrypting and loading the client_pub_key
 	client_pub_key = RSADecryption(serverPriKey, client_pub_key_encrypted)	
@@ -98,8 +97,7 @@ def clientAuthentication(socket, addr, R1):
 	while (attempt_count != 3) and (not auth_flag):
 		#verify challenge answer, password
 		thirdMessage = socket.recvfrom(65536)
-		print thirdMessage
-
+	
 		thirdMessage = thirdMessage[0].split("delimiter")
 		
 		
@@ -111,13 +109,17 @@ def clientAuthentication(socket, addr, R1):
 	
 		#Decrypting the messege to retrieve the challenge answer, uname, password
 		thirdMessage_dict = RSADecryption(serverPriKey, thirdMessage[0])	
-	
-		challenge_msg_dict = ast.literal_eval(thirdMessage_dict)
+
+
+		challenge_msg_dict = cPickle.loads(thirdMessage_dict)
+
+		# challenge_msg_dict = ast.literal_eval(thirdMessage_dict)
 	
 		challenge_ans =  challenge_msg_dict['challenge_ans']
 		uname = challenge_msg_dict['uname']
 		password = challenge_msg_dict['password']
 		random_num = challenge_msg_dict['random']
+		client_dh_key = challenge_msg_dict['dh_key']
 	
 		#Increment and Check random number
 		R2 = R2+1
@@ -140,14 +142,24 @@ def clientAuthentication(socket, addr, R1):
 				R3 = R2 + 1
 				kill_msg = {'status': 'KILL', 'random':R3}
 				kill_msg = RSAEncryption(client_pub_key, str(kill_msg))
+
 				socket.sendto(kill_msg, addr)	 		
 		else:
+			dh_private_key, dh_public_key = dh_keygen()
 			R3 = R2 + 1
+
 			#Generating token id 
 			token_id = str(addr) + ':' + str(challenge_ans)
 			token_msg = {'status': 'WELCOME', 'random': R3, 'token_id' : token_id}
+
 			token_msg = RSAEncryption(client_pub_key, str(token_msg))
-			socket.sendto(token_msg, addr)			
+			socket.sendto(token_msg+"delimiter"+dh_public_key, addr)
+
+			# Computing D-H shared key
+			shared_key = dh_shared_keygen(dh_private_key, client_dh_key)
+
+			print base64.b64encode(shared_key)
+
 			auth_flag = True
 
 	#Kill connection if all authentication attempts exhausted 	
@@ -156,6 +168,8 @@ def clientAuthentication(socket, addr, R1):
 		return 'LOGIN FAIL', None   #Send None as token_id, if login fails 	
 	else:
 		return 'LOGIN SUCCESS', token_id, client_pub_key
+
+
 	
 	
 
