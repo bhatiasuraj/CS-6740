@@ -64,8 +64,8 @@ def clientAuthentication(socket, addr, R1):
 	msg_dict_verify = secondMessage
 	
 	#Decrypting and loading the client_pub_key
-	client_pub_key = RSADecryption(serverPriKey, client_pub_key_encrypted)	
-	client_pub_key = serialization.load_der_public_key(client_pub_key, backend=default_backend())
+	client_pub_key_file = RSADecryption(serverPriKey, client_pub_key_encrypted)	
+	client_pub_key = serialization.load_der_public_key(client_pub_key_file, backend=default_backend())
 	
 	#use client pub key to verify the signature
 	if not messageVerification(client_pub_key,str(msg_dict_verify),msg_sign):
@@ -158,16 +158,14 @@ def clientAuthentication(socket, addr, R1):
 			# Computing D-H shared key
 			shared_key = dh_shared_keygen(dh_private_key, client_dh_key)
 
-			print base64.b64encode(shared_key)
-
 			auth_flag = True
 
 	#Kill connection if all authentication attempts exhausted 	
 	if not auth_flag:
 		#returning status and token_id
-		return 'LOGIN FAIL', None   #Send None as token_id, if login fails 	
+		return 'LOGIN FAIL', None, None   #Send None as token_id, if login fails 	
 	else:
-		return 'LOGIN SUCCESS', token_id, client_pub_key
+		return 'LOGIN SUCCESS', token_id, client_pub_key_file, shared_key
 
 
 	
@@ -295,9 +293,6 @@ serverSocket = createSocket(args.server_port)
 
 # Maintain dictionary mapping of username and addresses
 logged_users = dict()
-logged_ident = dict()
-token_id_dict = dict()
-logged_users_keys = dict()
 
 try:
 	while True:
@@ -305,22 +300,79 @@ try:
 		# Wait for messages to be received infinitely. handle accordingly
 		message, addr = serverSocket.recvfrom(65535)
 
+		print message
+		
 		try:
 			message = RSADecryption(serverPriKey, message)
-		except ValueError:
-			print "ERROR"
+
+		except:
+			print 'HI'
 
 		try:
 			message = ast.literal_eval(message)
 		except ValueError:
-			continue
+			pass
+
+		try:
+
+			print "HERE "
+
+			print type(message)
+
+			iv = message['iv']
+
+			print type(iv)
+
+			tag = message['tag']
+
+			print iv, tag
+
+			print message['message']
+
+			message = AESDecryption(shared_key, (iv), str(tag), message['message'])
+
+			#print "MESSAGE: "+str(message)
+
+		except ValueError as e:
+			print e
+		except TypeError as e:
+			print e
+		except KeyError as e:
+			print e
+
+		
 
 		if message['message'] == "LOGIN":
-			clientAuthentication(serverSocket, addr, message['random'])
-			
 
+			username = message['user']
+
+			login_status, token_id, client_pub_key, shared_key = clientAuthentication(serverSocket, addr, message['random'])
+
+			if login_status == 'LOGIN FAIL':
+				continue
+
+			elif login_status == 'LOGIN SUCCESS':
+				# Add to logged users dictionary
+				# Add ident to logged ident dictionary
+
+				logged_users[addr] = [username, client_pub_key, token_id, shared_key]
+			
+				#print logged_users
+			
+				print ("Registering %s" % (username))
+		
 		if message['message'] == "list":
+
+			print message			
+
+			cipher_register, tag = AESEncryption(shared_key, iv, tag, register_message)
+
+			socket.sendto(cipher_register, addr)
+	
+
 			serverSocket.sendto(" Signed in Users: "+str(userString), address)
+
+			
 
 		if message['message'] == "send":
 			sendMessage(serverSocket, userDatabase, message, address)

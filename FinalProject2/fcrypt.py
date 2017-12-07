@@ -5,6 +5,7 @@
 # Cryptography modules
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes, hmac, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa, dh, ec
 from cryptography.hazmat.primitives import padding as paddingFunction
@@ -18,25 +19,21 @@ import sys
 import os
 import base64
 
-def AESEncryption(key, associatedData, iv, pt):
+def AESEncryption(key, iv, pt):
 
 	cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend())
 
 	encryptor = cipher.encryptor()
 
-	encryptor.authenticate_additional_data(associatedData)
-
 	ct = encryptor.update(pt) + encryptor.finalize()
 
 	return ct, encryptor.tag
 
-def AESDecryption(key, associatedData, iv, tag, ct):
+def AESDecryption(key, iv, tag, ct):
 
 	cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend())
 
 	decryptor = cipher.decryptor()
-
-	decryptor.authenticate_additional_data(associatedData)
 
 	pt = decryptor.update(ct) + decryptor.finalize()
 
@@ -208,7 +205,19 @@ def dh_shared_keygen(my_private_key, their_public_key):
 
 	shared_key = my_private_key.exchange(ec.ECDH(), their_public_key)
 
-	return shared_key
+	salt = os.urandom(16)
+
+	kdf = PBKDF2HMAC(
+	algorithm=hashes.SHA256(),
+        length=32,
+	salt=salt,
+        iterations=100000,
+	backend=default_backend()
+	)
+
+	key = kdf.derive(shared_key)
+
+	return key
 
 
 

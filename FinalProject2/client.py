@@ -179,7 +179,7 @@ def serverAuthentication(addr, socket):
 			print base64.b64encode(shared_key)
 
 			print 'TokenId: '+ token_id 
-			return token_id
+			return token_id, shared_key
 
 #Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
@@ -218,9 +218,23 @@ def sendToServer(message, socket, username, addr):
 	# Retrieve list of users connected to chat from server
 	if message == "list":
 		try :
-			socket.sendto("list", addr)
+
+			iv = os.urandom(16)
+
+			print type(iv)
+
+			listRequest = {'message':'LIST', 'token':token_id}
+
+			cipher_list, tag = AESEncryption(shared_key, iv, str(listRequest))
+
+			cipher_list_dict = {'message':cipher_list, 'iv':iv, 'tag':tag}
+			
+			socket.sendto(str(cipher_list_dict), addr)
+
 			socket.settimeout(2)
+
 			data, server = socket.recvfrom(65535)
+
 			print str("<-"+data)
 
 		except error, msg:
@@ -309,7 +323,7 @@ server_addr = (args.server, args.server_port)
 client_socket = createSocket()
 
 # Send SIGN-IN message to server after socket creation
-token_id = serverAuthentication(server_addr, client_socket)
+token_id, shared_key = serverAuthentication(server_addr, client_socket)
 
 prompt()
 
