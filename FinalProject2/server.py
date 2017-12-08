@@ -23,6 +23,7 @@ import argparse
 import sys
 import os
 import cPickle
+import pickle
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 import random
@@ -78,7 +79,7 @@ def clientAuthentication(socket, addr, R1):
 	#print 'incremented R2: '+str(R2)
 	#send challenge
 	challenge_num = random.randint(10000,99999) #generate random 5 digit number	
-	challenge = create_challenge(challenge_num)
+	challenge = make_hash(challenge_num)
 
 	
 	
@@ -158,6 +159,8 @@ def clientAuthentication(socket, addr, R1):
 			# Computing D-H shared key
 			shared_key = dh_shared_keygen(dh_private_key, client_dh_key)
 
+			print base64.b64encode(shared_key)
+
 			auth_flag = True
 
 	#Kill connection if all authentication attempts exhausted 	
@@ -166,21 +169,6 @@ def clientAuthentication(socket, addr, R1):
 		return 'LOGIN FAIL', None, None   #Send None as token_id, if login fails 	
 	else:
 		return 'LOGIN SUCCESS', token_id, client_pub_key_file, shared_key
-
-
-	
-	
-
-#Function to send the challenge to the client
-def create_challenge(challenge_num):    
-
-    #hash the random number created above
-    challenge_digest = hashes.Hash(hashes.SHA1(), backend=default_backend())
-    challenge_digest.update(str(challenge_num))
-    challenge_hash = challenge_digest.finalize()
-    challenge_hash = base64.b64encode(challenge_hash)
-
-    return challenge_hash
 
 
 
@@ -293,6 +281,7 @@ serverSocket = createSocket(args.server_port)
 
 # Maintain dictionary mapping of username and addresses
 logged_users = dict()
+logged_list = dict()
 
 try:
 	while True:
@@ -306,47 +295,58 @@ try:
 			message = RSADecryption(serverPriKey, message)
 
 		except:
-			print 'HI'
+			pass
+
+	
+		try:
+			message = pickle.loads(message)
+		except KeyError:
+			pass
 
 		try:
 			message = ast.literal_eval(message)
 		except ValueError:
 			pass
+		except SyntaxError:
+			pass
 
 		try:
 
-			print "HERE "
+			padded_iv = message['iv']
 
-			print type(message)
-
-			iv = message['iv']
-
-			print type(iv)
+			iv = dataUnpadding(padded_iv)
 
 			tag = message['tag']
 
-			print iv, tag
-
 			print message['message']
 
-			message = AESDecryption(shared_key, (iv), str(tag), message['message'])
+			if addr in logged_users:
+				shared_key = logged_users[addr][-1]
 
-			#print "MESSAGE: "+str(message)
-
+				message = AESDecryption(shared_key, iv, tag, message['message'])
+		except:
+			pass
+		'''
 		except ValueError as e:
 			print e
 		except TypeError as e:
 			print e
 		except KeyError as e:
 			print e
+		'''
 
-		
+		try:
+			message = ast.literal_eval(message)
+		except ValueError:
+			pass
+		except SyntaxError:
+			pass
 
 		if message['message'] == "LOGIN":
 
 			username = message['user']
 
-			login_status, token_id, client_pub_key, shared_key = clientAuthentication(serverSocket, addr, message['random'])
+			login_status, token_id, client_pub_key_file, shared_key = clientAuthentication(serverSocket, addr, message['random'])
 
 			if login_status == 'LOGIN FAIL':
 				continue
@@ -355,24 +355,51 @@ try:
 				# Add to logged users dictionary
 				# Add ident to logged ident dictionary
 
-				logged_users[addr] = [username, client_pub_key, token_id, shared_key]
+				logged_users[addr] = [username, client_pub_key_file, token_id, shared_key]
+
+				logged_list[username] =  [client_pub_key_file, addr]
+
+				print logged_list
 			
 				#print logged_users
 			
 				print ("Registering %s" % (username))
 		
-		if message['message'] == "list":
+		if message['message'] == "LIST":
 
-			print message			
+			if addr in logged_users:
+				shared_key = logged_users[addr][-1]
 
-			cipher_register, tag = AESEncryption(shared_key, iv, tag, register_message)
+				cipher_list, tag = AESEncryption(shared_key, iv, str(logged_list))
 
-			socket.sendto(cipher_register, addr)
-	
+				cipher_list_reply = {'message':'LISTREP', 'tag':tag, 'data':cipher_list}
 
-			serverSocket.sendto(" Signed in Users: "+str(userString), address)
+				cipher_list_reply = pickle.dumps(cipher_list_reply)			
 
+				serverSocket.sendto(cipher_list_reply, addr)
+
+			else:
+				serverSocket.sendto("First Authenticate with server", addr)
+		if message['message'] == "CHECKTID":
+			print "in tID"
+			if addr in logged_users:
+				shared_key = logged_users[addr][-1]
+						
+			status_info = AESDecryption(shared_key, message['iv'], message['tag'], message['info'])
 			
+			print 'Decrypt sucess'
+			#Retreiving the tokenid of the user received
+			if addr in logged_users:
+				client_token_id = logged_users[addr][-2]
+			#Creating the hash of the tokenid
+			client_token_id_hash = make_hash(client_token_id)
+			
+			#Comparing the hashes
+			status_info = ast.literal_eval(status_info)
+			if client_token_id_hash == status_info['token_hash']:
+				serverSocket.sendto('PASS', addr)
+			else: 
+				serverSocket.sendto('PASS', addr)
 
 		if message['message'] == "send":
 			sendMessage(serverSocket, userDatabase, message, address)
@@ -384,6 +411,7 @@ try:
 
 # Handle keyboard interrupt and inform connected clients of break down
 except KeyboardInterrupt:
+	serverSocket.close()
 	for key, value in userDatabase.items():
 		serverSocket.sendto("Server Down.", value)
 

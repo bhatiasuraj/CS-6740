@@ -183,7 +183,21 @@ def dh_shared_keygen(my_private_key, their_public_key):
 
 	shared_key = my_private_key.exchange(their_public_key)
 
-	return shared_key
+	salt = os.urandom(16)
+
+	kdf = PBKDF2HMAC(
+	algorithm=hashes.SHA256(),
+        length=32,
+	salt=salt,
+        iterations=100000,
+	backend=default_backend()
+	)
+
+	key = kdf.derive(shared_key)
+
+	# print 'FINAL: '+base64.b64encode(key)
+
+	return key
 
 '''
 
@@ -205,7 +219,9 @@ def dh_shared_keygen(my_private_key, their_public_key):
 
 	shared_key = my_private_key.exchange(ec.ECDH(), their_public_key)
 
-	salt = os.urandom(16)
+	# salt = os.urandom(16)
+
+	salt = b'69685906859068590658'
 
 	kdf = PBKDF2HMAC(
 	algorithm=hashes.SHA256(),
@@ -219,7 +235,14 @@ def dh_shared_keygen(my_private_key, their_public_key):
 
 	return key
 
+def make_hash(data):
 
+	data_digest = hashes.Hash(hashes.SHA1(), backend=default_backend())
+    	data_digest.update(str(data))
+    	data_hash = data_digest.finalize()
+    	data_hash = base64.b64encode(data_hash)
+
+	return data_hash
 
 
 

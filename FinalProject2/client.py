@@ -22,6 +22,7 @@ import argparse
 import sys
 import os
 import cPickle
+import pickle
 from random import randint
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -40,6 +41,12 @@ from fcrypt import loadRSAPublicKey
 from fcrypt import loadRSAPrivateKey
 from fcrypt import dh_keygen
 from fcrypt import *
+
+global logged_list
+logged_list = dict()
+server_iv  = ''
+
+client_logged_list = dict()
 
 def prompt():
 
@@ -174,12 +181,86 @@ def serverAuthentication(addr, socket):
 
 			server_dh_public_key = auth_msg[0].split("delimiter")[1]
 
-			shared_key = dh_shared_keygen(dh_private_key, server_dh_public_key)
+			server_shared_key = dh_shared_keygen(dh_private_key, server_dh_public_key)
 
-			print base64.b64encode(shared_key)
+
+			print base64.b64encode(server_shared_key)
 
 			print 'TokenId: '+ token_id 
-			return token_id, shared_key
+			return token_id, server_shared_key, dh_private_key, dh_public_key
+
+def c2c_auth(client_addr, dest_pub_key):
+
+	status = 'NOTREGISTERED'
+	client_shared_key = None
+
+	dest_pub_key = serialization.load_der_public_key(dest_pub_key, backend=default_backend())
+
+	token_hash = make_hash(token_id)
+
+
+	f = open(senderPubKeyFile, 'r')
+	publicKeyFile = f.read()
+	f.close()	
+
+	pk1 = publicKeyFile[0:len(publicKeyFile)/2]
+
+	pk2 = publicKeyFile[len(publicKeyFile)/2:]
+
+	enc_pk1 = RSAEncryption(dest_pub_key, pk1)
+
+	enc_pk2 = RSAEncryption(dest_pub_key, pk2)
+	
+	#Dict with R1, token_hash and username
+	R1 = randint(0,999)
+	client_info = {'username':username, 'token_hash':token_hash, 'random':R1}
+
+	enc_client_info = RSAEncryption(dest_pub_key, str(client_info))
+
+	client_auth_msg = {'message':'CLI_AUTH', 'info':enc_client_info, 'pk1':enc_pk1, 'pk2':enc_pk2 }
+
+	client_auth_msg = pickle.dumps(client_auth_msg)
+
+	print "ALL DONE"
+
+	client_socket.sendto(client_auth_msg, client_addr)
+	
+	DH_message = client_socket.recv(65535)
+	DH_message = pickle.loads(DH_message)
+
+	#Extracting random number from  encrypted DH_message
+	random_num =RSADecryption(sendPriKey, DH_message['random'])
+	print random_num 
+	#Check if extracted R1 is incremented
+	R1 += 1  #Incrementing original R1
+	print R1
+	if not str(R1) == str(random_num):
+			sys.exit("Random number doesnt match")
+	
+	#Decrypting the DH_public key
+	DH_client_pub_key = RSADecryption(sendPriKey, DH_message['key'])
+
+	#Send DH_contribution to client
+	CipherKey = RSAEncryption(dest_pub_key, dh_public_key)
+	R1 += 1 #increment befor sending
+	CipherNum = RSAEncryption(dest_pub_key, str(R1))
+	DH_message = {"key":CipherKey, "random":CipherNum}	
+	DH_message = pickle.dumps(DH_message)
+	client_socket.sendto(DH_message, client_addr) 
+
+	#Generate DH shared key
+	client_shared_key = dh_shared_keygen(dh_private_key,DH_client_pub_key)
+	print "sharedKEy:"
+	print base64.b64encode(client_shared_key)
+	
+	#Check if shared key was generated and change status 
+	if not client_shared_key == None: 
+		status = 'REGISTERED'
+		return status, client_shared_key
+	else:
+		return status, client_shared_key
+
+
 
 #Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
@@ -219,23 +300,34 @@ def sendToServer(message, socket, username, addr):
 	if message == "list":
 		try :
 
-			iv = os.urandom(16)
-
-			print type(iv)
+			server_iv = os.urandom(16)
 
 			listRequest = {'message':'LIST', 'token':token_id}
 
-			cipher_list, tag = AESEncryption(shared_key, iv, str(listRequest))
+			cipher_list, e_tag = AESEncryption(server_shared_key, server_iv, str(listRequest))
 
-			cipher_list_dict = {'message':cipher_list, 'iv':iv, 'tag':tag}
+			padded_iv = dataPadding(server_iv)
+
+			cipher_list_dict = {'message':cipher_list, 'iv':padded_iv, 'tag':e_tag}
+
+			cipher_list_dict = pickle.dumps(cipher_list_dict)
 			
-			socket.sendto(str(cipher_list_dict), addr)
+			socket.sendto(cipher_list_dict, addr)
 
-			socket.settimeout(2)
+			socket.settimeout(4)
 
-			data, server = socket.recvfrom(65535)
+			enc_data, server = socket.recvfrom(65535)
 
-			print str("<-"+data)
+			enc_data = pickle.loads(enc_data)
+
+			logged_list = AESDecryption(server_shared_key, server_iv, enc_data['tag'], enc_data['data'])
+
+			logged_list = ast.literal_eval(logged_list)
+
+			for key in logged_list:
+				print key
+
+			return logged_list
 
 		except error, msg:
 			print 'Error Code : ' + str(msg)
@@ -323,9 +415,11 @@ server_addr = (args.server, args.server_port)
 client_socket = createSocket()
 
 # Send SIGN-IN message to server after socket creation
-token_id, shared_key = serverAuthentication(server_addr, client_socket)
+token_id, server_shared_key, dh_private_key, dh_public_key = serverAuthentication(server_addr, client_socket)
 
 prompt()
+
+authenticated_users = dict()
 
 try:
 	while True:
@@ -338,7 +432,7 @@ try:
 			if sock == client_socket:
 				# Keep checking for received messages from server or other users
 				try:
-					data = client_socket.recv(65535)
+					data, addr = client_socket.recvfrom(65535)
 
 				except error:
 					break
@@ -347,6 +441,86 @@ try:
 					sys.exit()
 
 				else:
+
+					try:
+						data = pickle.loads(data)
+
+												
+					except:
+						pass
+
+					try:
+						data = ast.literal_eval(data)
+
+					except:
+						pass
+
+					if data['message'] == 'CHAT':
+						chat_message = AESDecryption(client_shared_key, data['chat_iv'], data['chat_tag'], data['chat_message'])
+						print 'msg_rcv:'						
+						print chat_message
+
+					if data['message'] == 'CLI_AUTH':
+						
+						dec_info = RSADecryption(sendPriKey, data['info'])
+						dec_pk1 = RSADecryption(sendPriKey, data['pk1'])
+						dec_pk2 = RSADecryption(sendPriKey, data['pk2'])
+						 
+						#Sending tokenid to server for verificaation
+						new_iv = os.urandom(16)
+						status_info, e_tag = AESEncryption(server_shared_key, new_iv, dec_info)
+						token_verify_msg = {'message': 'CHECKTID', 'info':status_info, 'tag': e_tag, 'iv': new_iv}
+						token_verify_msg = pickle.dumps(token_verify_msg)
+						client_socket.sendto(token_verify_msg, server_addr)
+						result = client_socket.recv(65535)
+
+						if result == 'PASS':
+							print "Passsed"
+							dec_info = ast.literal_eval(dec_info)
+							R1 = dec_info['random']
+							token_hash = dec_info['token_hash']
+							dest_username =  dec_info['username']
+							#Recreating the client_public_key of destination
+							dest_publicKeyFile = dec_pk1+dec_pk2
+
+							#Start diffie Hellman exchange
+							R1 += 1
+							dest_publicKeyFile =serialization.load_der_public_key(dest_publicKeyFile, backend=default_backend())
+							CipherKey = RSAEncryption(dest_publicKeyFile, dh_public_key)
+							CipherNum = RSAEncryption(dest_publicKeyFile, str(R1))
+							DH_message = {"key":CipherKey, "random":CipherNum}	
+							DH_message = pickle.dumps(DH_message)
+							client_socket.sendto(DH_message, addr)
+							DH_peer_message = client_socket.recv(65535) 
+							DH_peer_message = pickle.loads(DH_peer_message)
+
+							#Extracting random number from  encrypted DH_message
+							random_num =RSADecryption(sendPriKey, DH_peer_message['random'])
+							 
+							#Check if extracted R1 is incremented
+							R1 += 1  #Incrementing original R1
+							if not str(R1) == str(random_num):
+									sys.exit("Random number doesnt match")
+	
+							#Decrypting the DH_public key
+							DH_peer_pub_key = RSADecryption(sendPriKey, DH_peer_message['key'])
+							print 'key received'
+
+							#Generate DH shared key
+							client_shared_key = dh_shared_keygen(dh_private_key,DH_peer_pub_key)
+							print "sharedKEy:"
+							print base64.b64encode(client_shared_key)
+							
+							#Add shared key to key dict
+							client_logged_list[addr] = client_shared_key 
+						else:
+							print "Failed"
+							client_socket.sendto('Wrong token id', addr)
+						 
+
+											
+
+					'''
 					# Retrieve receiver information from server to send message directly
 					if data.split()[0] == "Send":
 						receiverIp = data.split()[1]
@@ -385,33 +559,58 @@ try:
 					else:
 						sys.stdout.write('\n<- '+data+'\n')
 
+					'''
 					prompt()
 			else:
 				# Take input from user
-				message = raw_input()
+				user_input = raw_input()
 
 				# Handle user exit
-				if message == "exit":
-					sendToServer(message, client_socket, username, server_addr)
+				if user_input == "exit":
+					sendToServer(user_input, client_socket, username, server_addr)
 					client_socket.close()
 					sys.exit(0)
 
 				# Blank command goes to next line
-				elif message =="":
+				elif user_input =="":
 					prompt()
 
 				# Check for message format
-				elif message.split()[0] == "send":
+				elif user_input.split()[0] == "send":
 					try:
-						sendToServer(message, client_socket, username, server_addr)
+
+						dest_client = user_input.split()[1]
+						chat_message = user_input.split()[2]
+
+						if dest_client in logged_list:
+							client_addr = logged_list[dest_client][1]
+							dest_pub_key = logged_list[dest_client][0]
+
+
+						if not dest_client in authenticated_users:
+
+							status,client_shared_key = c2c_auth(client_addr, dest_pub_key)
+							client_logged_list[client_addr] = client_shared_key 
+
+							#Encrypting the chat
+							client_iv = os.urandom(16)							
+							enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
+							chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 'chat_tag': c_tag, 'chat_message': enc_chat}
+							chat_dict = pickle.dumps(chat_dict)
+							client_socket.sendto(chat_dict, client_addr)							
+						
+						#client_socket.sendto(user_input.split(" ")[2], client_addr)
 
 					except IndexError:
 						print "+> Incorrect send format, please try again."
 						prompt()
+				
+
+					
 
 				# Request from server list of users logged in to chat
-				elif message == "list":
-					sendToServer(message, client_socket, username, server_addr)
+				elif user_input == "list":
+					logged_list = sendToServer(user_input, client_socket, username, server_addr)
 					prompt()
 
 				# Handle invalid chat commands
