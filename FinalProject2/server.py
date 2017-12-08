@@ -155,27 +155,32 @@ def clientAuthentication(socket, addr, R1):
 
 			# Computing D-H shared key
 			shared_key = dh_shared_keygen(dh_private_key, client_dh_key)
-
+			#addming uname used for login to list 
+			uname_in_use.append(uname)
+			#Set auth flag to true
 			auth_flag = True
 
 	#Kill connection if all authentication attempts exhausted 	
 	if not auth_flag:
 		#returning status and token_id
-		return 'LOGIN FAIL', None, None   #Send None as token_id, if login fails 	
+		return 'LOGIN FAIL', None, None, None, None   #Send None as token_id, if login fails 	
 	else:
-		return 'LOGIN SUCCESS', token_id, client_pub_key_file, shared_key
+		return 'LOGIN SUCCESS', token_id, client_pub_key_file, shared_key, uname
 
 
 
 #Function to authenticate the username and password from the serverConf file
 def password_authenticate(uname, password):
-	for line in open("serverConf.conf","r").readlines(): # Read the lines
-		login_info = line.split(':') # Split on the space, and store the results in a list of two strings
-		if uname == login_info[0] and password == login_info[1][:-1]:
-			print 'Authentication Sucessfull!!!'                
-			return True
-	print 'Incorrect credentials.'
-	return False
+	if uname in uname_in_use:
+		return False
+	else:
+		for line in open("serverConf.conf","r").readlines(): # Read the lines
+			login_info = line.split(':') # Split on the space, and store the results in a list of two strings
+			if uname == login_info[0] and password == login_info[1][:-1]:
+				print 'Authentication Sucessfull!!!'                
+				return True
+		print 'Incorrect credentials.'
+		return False
 
 		
 
@@ -277,6 +282,7 @@ serverSocket = createSocket(args.server_port)
 # Maintain dictionary mapping of username and addresses
 logged_users = dict()
 logged_list = dict()
+uname_in_use=[]
 
 try:
 	while True:
@@ -340,7 +346,7 @@ try:
 
 			username = message['user']
 
-			login_status, token_id, client_pub_key_file, shared_key = clientAuthentication(serverSocket, addr, message['random'])
+			login_status, token_id, client_pub_key_file, shared_key, u_name = clientAuthentication(serverSocket, addr, message['random'])
 
 			if login_status == 'LOGIN FAIL':
 				continue
@@ -349,7 +355,7 @@ try:
 				# Add to logged users dictionary
 				# Add ident to logged ident dictionary
 
-				logged_users[addr] = [username, client_pub_key_file, token_id, shared_key]
+				logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
 
 				logged_list[username] =  [client_pub_key_file, addr]
 			
@@ -395,6 +401,11 @@ try:
 		if message['message'] == "LOGOFF":
 			print "START LOGOFF process"
 			if addr in logged_users:
+				#Remove uname form uname_in_use
+				u_name = logged_users[addr][1]
+				print u_name
+				uname_in_use.remove(u_name)
+
 				exit_shared_key = logged_users[addr][-1]
 
 				logoff_info = AESDecryption(exit_shared_key, message['iv'], message['tag'], message['info'])

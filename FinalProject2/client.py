@@ -307,8 +307,11 @@ def sendToServer(message, socket, username, addr):
 			logged_list = ast.literal_eval(logged_list)
 			
 			print "o> Logged users: "
-			for key in logged_list:
-				print "   "+key
+			for u_name in logged_list:
+				if u_name == username:
+					continue
+				else:
+					print "   "+u_name
 			#print "\n"
 
 			return logged_list
@@ -403,7 +406,6 @@ token_id, server_shared_key, dh_private_key, dh_public_key = serverAuthenticatio
 
 prompt()
 
-authenticated_users = dict()
 
 try:
 	while True:
@@ -594,11 +596,27 @@ try:
 							prompt()
 
 						try:
-							if dest_client not in authenticated_users:
+							if client_addr not in client_logged_list:
 
 								status, client_shared_key = c2c_auth(client_addr, dest_pub_key)
-								client_logged_list[client_addr] = client_shared_key 
+								#Do status check
+								if not status == 'REGISTERED':
+									print 'Peer authentication failed. Please try again'
+								else:
+									
+									client_logged_list[client_addr] = client_shared_key 
 
+									#Encrypting the chat
+									client_iv = os.urandom(16)							
+									enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
+									chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
+										    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
+									chat_dict = pickle.dumps(chat_dict)
+									client_socket.sendto(chat_dict,
+				                                                          client_addr)
+									prompt()
+							else:
+								client_shared_key = client_logged_list[client_addr]
 								#Encrypting the chat
 								client_iv = os.urandom(16)							
 								enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
@@ -606,7 +624,7 @@ try:
 									    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
 								chat_dict = pickle.dumps(chat_dict)
 								client_socket.sendto(chat_dict,
-		                                                                  client_addr)
+			                                                          client_addr)
 								prompt()
 							
 						except NameError:
