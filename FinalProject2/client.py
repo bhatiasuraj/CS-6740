@@ -76,6 +76,7 @@ def serverAuthentication(addr, socket):
 	publicKeyFile = f.read()
 	f.close()	
 	
+
 	secondCipherKey = RSAEncryption(serverPubKey, publicKeyFile)
 	secondCipherNum = RSAEncryption(serverPubKey, str(R2))
 
@@ -130,7 +131,6 @@ def serverAuthentication(addr, socket):
 		#Encrypt the message and sign it then send
 
 		thirdMessage = RSAEncryption(serverPubKey, thirdMessage)
-
 		thirdHash = messageSigning(sendPriKey,thirdMessage)
 
 		#Send challenge_and, uname, password to the server for authentication

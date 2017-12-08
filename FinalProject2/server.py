@@ -283,13 +283,14 @@ serverSocket = createSocket(args.server_port)
 logged_users = dict()
 logged_list = dict()
 uname_in_use=[]
+username_list = []
+
 
 try:
 	while True:
 		print 'Server Listening'
 		# Wait for messages to be received infinitely. handle accordingly
 		message, addr = serverSocket.recvfrom(65535)
-		
 		try:
 			message = RSADecryption(serverPriKey, message)
 
@@ -346,32 +347,36 @@ try:
 
 			username = message['user']
 
-			login_status, token_id, client_pub_key_file, shared_key, u_name = clientAuthentication(serverSocket, addr, message['random'])
+			if username in username_list:
+				print "username already in use"
+			else: 
 
-			if login_status == 'LOGIN FAIL':
-				continue
+				login_status, token_id, client_pub_key_file, shared_key, u_name = clientAuthentication(serverSocket,
+					                                                                    addr, message['random'])
 
-			elif login_status == 'LOGIN SUCCESS':
-				# Add to logged users dictionary
-				# Add ident to logged ident dictionary
+				if login_status == 'LOGIN FAIL':
+					continue
 
-				logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
+				elif login_status == 'LOGIN SUCCESS':
+					# Add to logged users dictionary
 
-				logged_list[username] =  [client_pub_key_file, addr]
+					logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
+
+					logged_list[username] =  [client_pub_key_file, addr]
 			
-				print ("Registering %s" % (username))
+					print ("Registering %s" % (username))
+
+					#Add -u username to the list
+					for key in logged_users:
+						username_list.append(logged_users[key][0])
 		
 		if message['message'] == "LIST":
 
 			if addr in logged_users:
 				shared_key = logged_users[addr][-1]
-
 				cipher_list, tag = AESEncryption(shared_key, iv, str(logged_list))
-
 				cipher_list_reply = {'message':'LISTREP', 'tag':tag, 'data':cipher_list}
-
 				cipher_list_reply = pickle.dumps(cipher_list_reply)			
-
 				serverSocket.sendto(cipher_list_reply, addr)
 
 			else:
@@ -403,31 +408,20 @@ try:
 			if addr in logged_users:
 				#Remove uname form uname_in_use
 				u_name = logged_users[addr][1]
-				print u_name
 				uname_in_use.remove(u_name)
-
 				exit_shared_key = logged_users[addr][-1]
-
 				logoff_info = AESDecryption(exit_shared_key, message['iv'], message['tag'], message['info'])
-
 				logoff_info = ast.literal_eval(logoff_info)
 
 				bye_info = {'tokenid':logoff_info['tokenid']}
-
 				bye_iv = os.urandom(16)
-
 				bye_cipher, bye_tag = AESEncryption(exit_shared_key, bye_iv, str(bye_info))
-
 				bye_message = {'message':'BYE', 'info':bye_cipher, 'tag':bye_tag, 'iv':bye_iv}
-
 				bye_message = pickle.dumps(bye_message)
-
 				serverSocket.sendto(bye_message, addr)
 
 				del logged_users[addr]
-
 				del logged_list[logoff_info['username']]
-		
 				print logoff_info['username']+" has logged off"
 
 	serverSocket.close()
@@ -435,7 +429,5 @@ try:
 # Handle keyboard interrupt and inform connected clients of break down
 except KeyboardInterrupt:
 	serverSocket.close()
-	#for key, value in userDatabase.items():
-	#	serverSocket.sendto("Server Down.", value)
-
+	
 
