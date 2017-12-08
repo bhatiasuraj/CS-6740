@@ -485,7 +485,8 @@ try:
 
 							#Start diffie Hellman exchange
 							R1 += 1
-							dest_publicKeyFile =serialization.load_der_public_key(dest_publicKeyFile, backend=default_backend())
+							dest_publicKeyFile =serialization.load_der_public_key(dest_publicKeyFile,
+												 backend=default_backend())
 							CipherKey = RSAEncryption(dest_publicKeyFile, dh_public_key)
 							CipherNum = RSAEncryption(dest_publicKeyFile, str(R1))
 							DH_message = {"key":CipherKey, "random":CipherNum}	
@@ -578,9 +579,10 @@ try:
 				# Check for message format
 				elif user_input.split()[0] == "send":
 					try:
-
+						#Extract username and message 
 						dest_client = user_input.split()[1]
-						chat_message = user_input.split()[2]
+						input_as_list = user_input.split()
+						chat_message = " ".join(input_as_list[2:]) 
 
 						if dest_client in logged_list:
 							client_addr = logged_list[dest_client][1]
@@ -595,9 +597,11 @@ try:
 							#Encrypting the chat
 							client_iv = os.urandom(16)							
 							enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
-							chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 'chat_tag': c_tag, 'chat_message': enc_chat}
+							chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
+								    'chat_tag': c_tag, 'chat_message': enc_chat}
 							chat_dict = pickle.dumps(chat_dict)
-							client_socket.sendto(chat_dict, client_addr)							
+							client_socket.sendto(chat_dict,
+                                                                          client_addr)							
 						
 						#client_socket.sendto(user_input.split(" ")[2], client_addr)
 
