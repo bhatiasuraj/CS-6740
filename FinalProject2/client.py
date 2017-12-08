@@ -163,7 +163,7 @@ def serverAuthentication(addr, socket):
 		elif auth_msg_dict['status'] == 'KILL':
 			sys.exit('All attempts exhausted. Start new session!!!')
 		elif auth_msg_dict['status'] == 'WELCOME':
-			print '<o> Authentication Successful'
+			print 'o> Authentication Successful'
 			auth_status = 'pass'	
 		
 			#Receive TokenId
@@ -305,9 +305,11 @@ def sendToServer(message, socket, username, addr):
 			logged_list = AESDecryption(server_shared_key, server_iv, enc_data['tag'], enc_data['data'])
 
 			logged_list = ast.literal_eval(logged_list)
-
+			
+			print "o> Logged users: "
 			for key in logged_list:
-				print key
+				print "   "+key
+			#print "\n"
 
 			return logged_list
 
@@ -441,7 +443,7 @@ try:
 						chat_message = AESDecryption(client_shared_key, data['chat_iv'], data['chat_tag'], data['chat_message'])
 
 						# Print SEND message
-						print "\n<o> "+data['from']+': '+chat_message
+						print "\no> "+data['from']+': '+chat_message
 						prompt()						
 
 					if data['message'] == 'CLI_AUTH':
@@ -587,22 +589,28 @@ try:
 							client_addr = logged_list[dest_client][1]
 							dest_pub_key = logged_list[dest_client][0]
 
+						else:
+							print dest_client+" not logged in! Try refreshing with list."
+							prompt()
 
-						if not dest_client in authenticated_users:
+						try:
+							if dest_client not in authenticated_users:
 
-							status,client_shared_key = c2c_auth(client_addr, dest_pub_key)
-							client_logged_list[client_addr] = client_shared_key 
+								status, client_shared_key = c2c_auth(client_addr, dest_pub_key)
+								client_logged_list[client_addr] = client_shared_key 
 
-							#Encrypting the chat
-							client_iv = os.urandom(16)							
-							enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
-							chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
-								    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
-							chat_dict = pickle.dumps(chat_dict)
-							client_socket.sendto(chat_dict,
-                                                                          client_addr)
-							prompt()							
-						
+								#Encrypting the chat
+								client_iv = os.urandom(16)							
+								enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
+								chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
+									    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
+								chat_dict = pickle.dumps(chat_dict)
+								client_socket.sendto(chat_dict,
+		                                                                  client_addr)
+								prompt()
+							
+						except NameError:
+							pass
 						#client_socket.sendto(user_input.split(" ")[2], client_addr)
 
 					except IndexError:
