@@ -2,6 +2,15 @@
 
 import os
 import sys
+import sys
+
+username = sys.argv[1]
+
+publicFileNameDer = username+"PublicKey.der"
+privateFileNameDer = username+"PrivateKey.der"
+
+publicFileNamePem = username+"PublicKey.pem"
+privateFileNamePem = username+"PrivateKey.pem"
 
 try:
 	keyType = raw_input("Enter type of key (pem/der): ")
@@ -23,23 +32,23 @@ try:
 
 	if keyType == "pem":
 
-		os.system("openssl genrsa -out senderPrivateKey.pem "+keySize)	
-		os.system("openssl rsa -in senderPrivateKey.pem -pubout > senderPublicKey.pem")
+		os.system("openssl genrsa -out "+privateFileNamePem+" "+keySize)	
+		os.system("openssl rsa -in "+privateFileNamePem+" -pubout > "+publicFileNamePem)
 
-	 	os.system("openssl genrsa -out destinationPrivateKey.pem "+keySize)
-	 	os.system("openssl rsa -in destinationPrivateKey.pem -pubout > destinationPublicKey.pem")
+	 	#os.system("openssl genrsa -out destinationPrivateKey.pem "+keySize)
+	 	#os.system("openssl rsa -in destinationPrivateKey.pem -pubout > destinationPublicKey.pem")
 
 	elif keyType == "der":
 
-		os.system("openssl genrsa -out senderPrivateKey.pem "+keySize)
-		os.system("openssl pkcs8 -topk8 -inform PEM -outform DER -in senderPrivateKey.pem -out senderPrivateKey.der -nocrypt")
-		os.system("openssl rsa -in senderPrivateKey.pem -pubout -outform DER -out senderPublicKey.der")
-		os.system("rm senderPrivateKey.pem")
+		os.system("openssl genrsa -out "+privateFileNamePem+" "+keySize)
+		os.system("openssl pkcs8 -topk8 -inform PEM -outform DER -in "+privateFileNamePem+" -out "+privateFileNameDer+" -nocrypt")
+		os.system("openssl rsa -in "+privateFileNamePem+" -pubout -outform DER -out "+publicFileNameDer)
+		os.system("rm "+privateFileNamePem)
 
-		os.system("openssl genrsa -out destinationPrivateKey.pem "+keySize)
-		os.system("openssl pkcs8 -topk8 -inform PEM -outform DER -in destinationPrivateKey.pem -out destinationPrivateKey.der -nocrypt")
-		os.system("openssl rsa -in destinationPrivateKey.pem -pubout -outform DER -out destinationPublicKey.der")
-		os.system("rm destinationPrivateKey.pem")
+		#os.system("openssl genrsa -out "+destinationPrivateKey.pem+" "+keySize)
+		#os.system("openssl pkcs8 -topk8 -inform PEM -outform DER -in "+destinationPrivateKey.pem+" -out "+destinationPrivateKey.der+" -nocrypt")
+		#os.system("openssl rsa -in "+destinationPrivateKey.pem+" -pubout -outform DER -out "+destinationPublicKey.der)
+		#os.system("rm "+destinationPrivateKey.pem)
 
 	else:
 		sys.exit("ERROR: Key type not supported!")
