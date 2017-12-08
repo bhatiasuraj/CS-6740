@@ -1,5 +1,5 @@
-suraj:jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=-----admin
-rounak:MoAfXGylmILQBMO5J944+iL6HtceD2PWZwfwAPJYfqw=----ron
-alice:K9gGyX8OAK8aH8Myj6djqSaXI8jbj6xPk69x2xhtbpA=-----alice
-bob:gbY32PzSxtpjWeaWMROhFw3nleS3JbhNHgtM/Z7FjOk=-------bob
+suraj:Hdvj688Bctani3a5at7xpQmNWVXmy4e1I6ygsdGrsZM=-----surajIsAdmin12!
+rounak:oLbaZ7rYDtSiYroLMOth6hKIOgvJdglxakkDWACyrZc=----StrongPassword@
+alice:gBTfE8urhOzlL8AE7mWNY5KGgxYVPhxXhkO/p+/pNrA=-----alice!sbeautiful
+bob:HokbAjERxSDmFQOq7dj28v1bjOat3/a++bZsUoXqYhM=-------bob#3sons
 nslab:WbSLgOLAxnRQd85hf62FiMC08v1leiq8zhiblasxQNw=-----nslabcs6740
