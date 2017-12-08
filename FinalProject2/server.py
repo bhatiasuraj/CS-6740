@@ -74,9 +74,9 @@ def clientAuthentication(socket, addr, R1):
 	
 	#Decrypting R2 and incrementing it
 	R2 = RSADecryption(serverPriKey, R2_encrypted)
-	#print 'R2 decrypted: '+str(R2)
+	
 	R2 = int(R2)+1
-	#print 'incremented R2: '+str(R2)
+	
 	#send challenge
 	challenge_num = random.randint(10000,99999) #generate random 5 digit number	
 	challenge = make_hash(challenge_num)
@@ -86,7 +86,6 @@ def clientAuthentication(socket, addr, R1):
 	#Encrypting the challenge
 	challenge_cipher = RSAEncryption(client_pub_key, challenge)
 	challenge_random = RSAEncryption(client_pub_key, str(R2))
-	#print "challenge encryption sucessfull"
 
 	challenge_dict = {'challenge': challenge_cipher, 'random': challenge_random}
 	
@@ -106,7 +105,6 @@ def clientAuthentication(socket, addr, R1):
 		#use client pub key to verify the signature
 		if not messageVerification(client_pub_key,thirdMessage[0],thirdMessage[1]):
 			sys.exit("Signature verification failed! Messege not from clint")
-		#print 'Signature verification successful'
 	
 		#Decrypting the messege to retrieve the challenge answer, uname, password
 		thirdMessage_dict = RSADecryption(serverPriKey, thirdMessage[0])	
@@ -124,8 +122,7 @@ def clientAuthentication(socket, addr, R1):
 	
 		#Increment and Check random number
 		R2 = R2+1
-		#print R2
-		#print random_num
+		
 		if not R2 == random_num:
 			sys.exit("Random number doesnt match")
 	
@@ -158,8 +155,6 @@ def clientAuthentication(socket, addr, R1):
 
 			# Computing D-H shared key
 			shared_key = dh_shared_keygen(dh_private_key, client_dh_key)
-
-			print base64.b64encode(shared_key)
 
 			auth_flag = True
 
@@ -288,8 +283,6 @@ try:
 		print 'Server Listening'
 		# Wait for messages to be received infinitely. handle accordingly
 		message, addr = serverSocket.recvfrom(65535)
-
-		print message
 		
 		try:
 			message = RSADecryption(serverPriKey, message)
@@ -301,6 +294,9 @@ try:
 		try:
 			message = pickle.loads(message)
 		except KeyError:
+			pass
+
+		except IndexError:
 			pass
 
 		try:
@@ -317,8 +313,6 @@ try:
 			iv = dataUnpadding(padded_iv)
 
 			tag = message['tag']
-
-			print message['message']
 
 			if addr in logged_users:
 				shared_key = logged_users[addr][-1]
@@ -358,10 +352,6 @@ try:
 				logged_users[addr] = [username, client_pub_key_file, token_id, shared_key]
 
 				logged_list[username] =  [client_pub_key_file, addr]
-
-				print logged_list
-			
-				#print logged_users
 			
 				print ("Registering %s" % (username))
 		
@@ -381,13 +371,11 @@ try:
 			else:
 				serverSocket.sendto("First Authenticate with server", addr)
 		if message['message'] == "CHECKTID":
-			print "in tID"
 			if addr in logged_users:
 				shared_key = logged_users[addr][-1]
 						
 			status_info = AESDecryption(shared_key, message['iv'], message['tag'], message['info'])
 			
-			print 'Decrypt sucess'
 			#Retreiving the tokenid of the user received
 			if addr in logged_users:
 				client_token_id = logged_users[addr][-2]
@@ -404,15 +392,39 @@ try:
 		if message['message'] == "send":
 			sendMessage(serverSocket, userDatabase, message, address)
 
-		if message['message'] == "exit":
-			userString, userDatabase = signIn(serverSocket, userDatabase, message, address)
+		if message['message'] == "LOGOFF":
+			print "START LOGOFF process"
+			if addr in logged_users:
+				exit_shared_key = logged_users[addr][-1]
+
+				logoff_info = AESDecryption(exit_shared_key, message['iv'], message['tag'], message['info'])
+
+				logoff_info = ast.literal_eval(logoff_info)
+
+				bye_info = {'tokenid':logoff_info['tokenid']}
+
+				bye_iv = os.urandom(16)
+
+				bye_cipher, bye_tag = AESEncryption(exit_shared_key, bye_iv, str(bye_info))
+
+				bye_message = {'message':'BYE', 'info':bye_cipher, 'tag':bye_tag, 'iv':bye_iv}
+
+				bye_message = pickle.dumps(bye_message)
+
+				serverSocket.sendto(bye_message, addr)
+
+				del logged_users[addr]
+
+				del logged_list[logoff_info['username']]
+		
+				print logoff_info['username']+" has logged off"
 
 	serverSocket.close()
 
 # Handle keyboard interrupt and inform connected clients of break down
 except KeyboardInterrupt:
 	serverSocket.close()
-	for key, value in userDatabase.items():
-		serverSocket.sendto("Server Down.", value)
+	#for key, value in userDatabase.items():
+	#	serverSocket.sendto("Server Down.", value)
 
 
