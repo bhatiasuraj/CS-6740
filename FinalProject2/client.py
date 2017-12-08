@@ -63,7 +63,13 @@ def serverAuthentication(addr, socket):
 
 	socket.sendto(cipherLogin, addr)
 
-	helloMessage = socket.recv(65535)
+	try:
+		socket.settimeout(4)
+
+		helloMessage = socket.recv(65535)
+
+	except:
+		sys.exit("User already in use, please use different name.")
 
 	R1 += 1
 
@@ -104,9 +110,19 @@ def serverAuthentication(addr, socket):
 	
 	auth_status = 'fail'
 	while (auth_status == 'fail'):
-		uname = raw_input("Enter username: ")
-		# Make password invisible
-		password = raw_input("Enter password: ")
+
+		try:
+			uname = raw_input("Enter username: ")
+			# Make password invisible
+			password = raw_input("Enter password: ")
+
+		except:
+			print "TERMINATE"
+			forced_quit = "TERMINATE"
+			forced_quit = RSAEncryption(serverPubKey, forced_quit)
+			socket.sendto(forced_quit, addr)
+			socket.close()
+			sys.exit("Forced quit!")			
 
 		#Hashing the password
 		pass_digest = hashes.Hash(hashes.SHA256(), backend=default_backend())

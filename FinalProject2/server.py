@@ -97,9 +97,17 @@ def clientAuthentication(socket, addr, R1):
 	while (attempt_count != 3) and (not auth_flag):
 		#verify challenge answer, password
 		thirdMessage = socket.recvfrom(65536)
-	
-		thirdMessage = thirdMessage[0].split("delimiter")
 		
+		try:
+			if RSADecryption(serverPriKey, thirdMessage[0]) == 'TERMINATE':
+				print "Terminate mesasge"
+				return
+
+		except ValueError:
+			print "NO TERMINATE"
+			pass
+	
+		thirdMessage = thirdMessage[0].split("delimiter")		
 		
 		#Check the signature  
 		#use client pub key to verify the signature
@@ -350,26 +358,28 @@ try:
 			if username in username_list:
 				print "username already in use"
 			else: 
+				try:	
+					login_status, token_id, client_pub_key_file, shared_key, u_name = clientAuthentication(serverSocket, addr, message['random'])
+			                                                            
 
-				login_status, token_id, client_pub_key_file, shared_key, u_name = clientAuthentication(serverSocket,
-					                                                                    addr, message['random'])
+					if login_status == 'LOGIN FAIL':
+						continue
 
-				if login_status == 'LOGIN FAIL':
-					continue
+					elif login_status == 'LOGIN SUCCESS':
+						# Add to logged users dictionary
 
-				elif login_status == 'LOGIN SUCCESS':
-					# Add to logged users dictionary
+						logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
 
-					logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
-
-					logged_list[username] =  [client_pub_key_file, addr]
+						logged_list[username] =  [client_pub_key_file, addr]
 			
-					print ("Registering %s" % (username))
+						print ("Registering %s" % (username))
 
-					#Add -u username to the list
-					for key in logged_users:
-						username_list.append(logged_users[key][0])
-		
+						#Add -u username to the list
+						for key in logged_users:
+							username_list.append(logged_users[key][0])
+				except TypeError:
+					pass
+
 		if message['message'] == "LIST":
 
 			if addr in logged_users:
@@ -409,6 +419,7 @@ try:
 				#Remove uname form uname_in_use
 				u_name = logged_users[addr][1]
 				uname_in_use.remove(u_name)
+				username_list.remove(logged_users[addr][0])
 				exit_shared_key = logged_users[addr][-1]
 				logoff_info = AESDecryption(exit_shared_key, message['iv'], message['tag'], message['info'])
 				logoff_info = ast.literal_eval(logoff_info)
@@ -422,6 +433,7 @@ try:
 
 				del logged_users[addr]
 				del logged_list[logoff_info['username']]
+
 				print logoff_info['username']+" has logged off"
 
 	serverSocket.close()
