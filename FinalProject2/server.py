@@ -371,12 +371,18 @@ try:
 						logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
 
 						logged_list[username] =  [client_pub_key_file, addr]
+						
+						print "LOGGED LIST"+str(logged_list)
 			
 						print ("Registering %s" % (username))
 
 						#Add -u username to the list
 						for key in logged_users:
-							username_list.append(logged_users[key][0])
+							if logged_users[key][0] not in username_list: 
+								username_list.append(logged_users[key][0])
+
+						print username_list
+
 				except TypeError:
 					pass
 
@@ -421,6 +427,7 @@ try:
 				uname_in_use.remove(u_name)
 				username_list.remove(logged_users[addr][0])
 				exit_shared_key = logged_users[addr][-1]
+				
 				logoff_info = AESDecryption(exit_shared_key, message['iv'], message['tag'], message['info'])
 				logoff_info = ast.literal_eval(logoff_info)
 
@@ -436,10 +443,39 @@ try:
 
 				print logoff_info['username']+" has logged off"
 
+				print username_list
+
+		if message['message'] == "CLIENT DOWN":
+						
+				try:
+					down_info = AESDecryption(logged_users[addr][-1], message['iv'], message['tag'], message['info'])
+				except:
+					continue
+
+				if down_info == "Client Down":
+					print logged_users[addr][0]+" has logged off"
+
+					uname_in_use.remove(logged_users[addr][1])
+					username_list.remove(logged_users[addr][0])
+					del logged_list[logged_users[addr][0]]
+					del logged_users[addr]
+
+				print username_list
+					
+
 	serverSocket.close()
 
 # Handle keyboard interrupt and inform connected clients of break down
 except KeyboardInterrupt:
+	for addr in logged_users:
+		
+		terminate_iv = os.urandom(16)
+		terminate_cipher, terminate_tag = AESEncryption(logged_users[addr][-1], terminate_iv, "Server Down")
+		terminate_message = {'message':'DOWN', 'info':terminate_cipher, 'tag':terminate_tag, 'iv':terminate_iv}
+		terminate_message = pickle.dumps(terminate_message)
+		serverSocket.sendto(terminate_message, addr)
+
 	serverSocket.close()
+	
 	
 

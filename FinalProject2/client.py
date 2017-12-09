@@ -527,7 +527,20 @@ try:
 						if bye_info['tokenid'] == token_id:
 							print "Logging off."
 							client_socket.close()
-							sys.exit(0)	 
+							sys.exit(0)	
+
+					# Exit from chat if server is down
+					if data['message'] == "DOWN":
+						
+						try:
+							down_info = AESDecryption(server_shared_key, data['iv'], data['tag'], data['info'])
+						except:
+							continue
+	
+						if down_info == "Server Down":
+							print "\n<o> Server down, logging off!"
+							client_socket.close()
+							sys.exit(0)	
 
 					'''
 					# Retrieve receiver information from server to send message directly
@@ -553,11 +566,6 @@ try:
 						# Do not send empty messages
 						except IndexError:
 							print "\n<- Please enter some message!"
-
-					# Exit from chat if server is down
-					elif data == "Server Down.":
-						print "\n+> Server disconnected, try again later."
-						sys.exit()
 
 					# Handle duplicate user log-in and exit
 					elif data == "User "+username+" already exists.":
@@ -666,8 +674,14 @@ try:
 
 # Handle keyboard interrup, notify server and exit from chat gracefully
 except KeyboardInterrupt:
-	sendToServer("exit", client_socket, username, server_addr)
+
+	c_terminate_iv = os.urandom(16)
+	c_terminate_cipher, c_terminate_tag = AESEncryption(server_shared_key, c_terminate_iv, "Client Down")
+	c_terminate_message = {'message':'CLIENT DOWN', 'info':c_terminate_cipher, 'tag':c_terminate_tag, 'iv':c_terminate_iv}
+	c_terminate_message = pickle.dumps(c_terminate_message)
+	client_socket.sendto(c_terminate_message, server_addr)
 	client_socket.close()
-	sys.exit(0)
+	sys.exit("\nExit from chat.\n")
+
 
 
