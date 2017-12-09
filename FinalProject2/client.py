@@ -209,8 +209,12 @@ def c2c_auth(client_addr, dest_pub_key):
 	client_auth_msg = pickle.dumps(client_auth_msg)
 
 	client_socket.sendto(client_auth_msg, client_addr)
-	
-	DH_message = client_socket.recv(65535)
+	try:
+		DH_message = client_socket.recv(65535)
+	except:
+		print "<o> Server down, cannot authenticate clients"
+		prompt()
+
 	DH_message = pickle.loads(DH_message)
 
 	# Extracting random number from  encrypted DH_message
@@ -300,8 +304,8 @@ def sendToServer(message, socket, username, addr):
 			return logged_list
 
 		except error, msg:
-			print 'Error Code : ' + str(msg)
-			sys.exit()
+			print "\n <o> Server Down, cannot update list."
+			prompt()
 
 def createSocket():
 
@@ -355,6 +359,7 @@ server_addr = (args.server, args.server_port)
 # Create client UDP socket
 client_socket = createSocket()
 
+server_flag = ''
 
 logged_list = dict()
 server_iv  = ''
@@ -421,47 +426,52 @@ try:
 						token_verify_msg = {'message': 'CHECKTID', 'info':status_info, 'tag': e_tag, 'iv': new_iv}
 						token_verify_msg = pickle.dumps(token_verify_msg)
 						client_socket.sendto(token_verify_msg, server_addr)
-						result = client_socket.recv(65535)
-
-						if result == 'PASS':
-							dec_info = ast.literal_eval(dec_info)
-							R1 = dec_info['random']
-							token_hash = dec_info['token_hash']
-							dest_username =  dec_info['username']
-							# Recreating the client_public_key of destination
-							dest_publicKeyFile = dec_pk1+dec_pk2
-
-							# Start diffie Hellman exchange
-							R1 += 1
-							dest_publicKeyFile =serialization.load_der_public_key(dest_publicKeyFile,
-												 backend=default_backend())
-							CipherKey = RSAEncryption(dest_publicKeyFile, dh_public_key)
-							CipherNum = RSAEncryption(dest_publicKeyFile, str(R1))
-							DH_message = {"key":CipherKey, "random":CipherNum}	
-							DH_message = pickle.dumps(DH_message)
-							client_socket.sendto(DH_message, addr)
-							DH_peer_message = client_socket.recv(65535) 
-							DH_peer_message = pickle.loads(DH_peer_message)
-
-							# Extracting random number from  encrypted DH_message
-							random_num =RSADecryption(sendPriKey, DH_peer_message['random'])
-							 
-							# Check if extracted R1 is incremented
-							R1 += 1  #Incrementing original R1
-							if not str(R1) == str(random_num):
-									sys.exit("Random number doesnt match")
-	
-							# Decrypting the DH_public key
-							DH_peer_pub_key = RSADecryption(sendPriKey, DH_peer_message['key'])
-
-							# Generate DH shared key
-							client_shared_key = dh_shared_keygen(dh_private_key,DH_peer_pub_key)
+						try:
+							result = client_socket.recv(65535)
 							
-							# Add shared key to key dict
-							client_logged_list[addr] = client_shared_key 
-						else:
-							print "Failed"
-							client_socket.sendto('Wrong token id', addr)
+							if result == 'PASS':
+								dec_info = ast.literal_eval(dec_info)
+								R1 = dec_info['random']
+								token_hash = dec_info['token_hash']
+								dest_username =  dec_info['username']
+								# Recreating the client_public_key of destination
+								dest_publicKeyFile = dec_pk1+dec_pk2
+
+								# Start diffie Hellman exchange
+								R1 += 1
+								dest_publicKeyFile =serialization.load_der_public_key(dest_publicKeyFile,
+													 backend=default_backend())
+								CipherKey = RSAEncryption(dest_publicKeyFile, dh_public_key)
+								CipherNum = RSAEncryption(dest_publicKeyFile, str(R1))
+								DH_message = {"key":CipherKey, "random":CipherNum}	
+								DH_message = pickle.dumps(DH_message)
+								client_socket.sendto(DH_message, addr)
+								DH_peer_message = client_socket.recv(65535) 
+								DH_peer_message = pickle.loads(DH_peer_message)
+
+								# Extracting random number from  encrypted DH_message
+								random_num =RSADecryption(sendPriKey, DH_peer_message['random'])
+								 
+								# Check if extracted R1 is incremented
+								R1 += 1  #Incrementing original R1
+								if not str(R1) == str(random_num):
+										sys.exit("Random number doesnt match")
+	
+								# Decrypting the DH_public key
+								DH_peer_pub_key = RSADecryption(sendPriKey, DH_peer_message['key'])
+
+								# Generate DH shared key
+								client_shared_key = dh_shared_keygen(dh_private_key,DH_peer_pub_key)
+							
+								# Add shared key to key dict
+								client_logged_list[addr] = client_shared_key 
+							else:
+								print "Failed"
+								client_socket.sendto('Wrong token id', addr)
+
+						except:
+							print "\n<o> Server down, cannot authenticate clients"
+							prompt()
 
 					if data['message'] == 'BYE':
 
@@ -476,7 +486,7 @@ try:
 
 					# Exit from chat if server is down
 					if data['message'] == "DOWN":
-						
+						server_flag = "DOWN"
 						try:
 							down_info = AESDecryption(server_shared_key, data['iv'], data['tag'], data['info'])
 						except:
@@ -484,6 +494,7 @@ try:
 	
 						if down_info == "Server Down":
 							print "\n<o> Server down, continue chatting with listed peers."	
+							prompt()
 
 					if data['message'] == "UPDATE":
 						try:
@@ -497,50 +508,66 @@ try:
 				user_input = raw_input()
 
 				# Handle user exit
-				if user_input == "exit":
+				try:
+					if user_input == "exit":
 
-					exit_iv = os.urandom(16)
+						if server_flag == "DOWN":
+							sys.exit("Logging off.")
 
-					exit_message = {"tokenid": token_id, "username": username}
+						exit_iv = os.urandom(16)
 
-					cipher_exit, exit_tag = AESEncryption(server_shared_key, exit_iv, str(exit_message))
+						exit_message = {"tokenid": token_id, "username": username}
 
-					cipher_exit_msg = {"message": "LOGOFF",'info':cipher_exit, 'tag': exit_tag, 'iv': exit_iv}
+						cipher_exit, exit_tag = AESEncryption(server_shared_key, exit_iv, str(exit_message))
 
-					cipher_exit_msg = pickle.dumps(cipher_exit_msg)
+						cipher_exit_msg = {"message": "LOGOFF",'info':cipher_exit, 'tag': exit_tag, 'iv': exit_iv}
 
-					client_socket.sendto(cipher_exit_msg, server_addr)
+						cipher_exit_msg = pickle.dumps(cipher_exit_msg)
 
-				# Blank command goes to next line
-				elif user_input =="":
-					prompt()
+						client_socket.sendto(cipher_exit_msg, server_addr)
 
-				# Check for message format
-				elif user_input.split()[0] == "send":
-					try:
-						# Extract username and message 
-						dest_client = user_input.split()[1]
-						input_as_list = user_input.split()
-						chat_message = " ".join(input_as_list[2:]) 
+					# Blank command goes to next line
+					elif user_input =="":
+						prompt()
 
-						if dest_client in logged_list:
-							client_addr = logged_list[dest_client][1]
-							dest_pub_key = logged_list[dest_client][0]
-
-						else:
-							print dest_client+" not logged in! Try refreshing with list."
-
+					# Check for message format
+					elif user_input.split()[0] == "send":
 						try:
-							if client_addr not in client_logged_list:
+							# Extract username and message 
+							dest_client = user_input.split()[1]
+							input_as_list = user_input.split()
+							chat_message = " ".join(input_as_list[2:]) 
 
-								status, client_shared_key = c2c_auth(client_addr, dest_pub_key)
-								# Do status check
-								if not status == 'REGISTERED':
-									print 'Peer authentication failed. Please try again'
-								else:
+							if dest_client in logged_list:
+								client_addr = logged_list[dest_client][1]
+								dest_pub_key = logged_list[dest_client][0]
+
+							else:
+								print "o> "+dest_client+" not logged in! Try refreshing with list."
+								prompt()
+
+							try:
+								if client_addr not in client_logged_list:
+
+									status, client_shared_key = c2c_auth(client_addr, dest_pub_key)
+									# Do status check
+									if not status == 'REGISTERED':
+										print 'Peer authentication failed. Please try again'
+									else:
 									
-									client_logged_list[client_addr] = client_shared_key 
+										client_logged_list[client_addr] = client_shared_key 
 
+										# Encrypting the chat
+										client_iv = os.urandom(16)							
+										enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
+										chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
+											    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
+										chat_dict = pickle.dumps(chat_dict)
+										client_socket.sendto(chat_dict,
+						                                                  client_addr)
+										prompt()
+								else:
+									client_shared_key = client_logged_list[client_addr]
 									# Encrypting the chat
 									client_iv = os.urandom(16)							
 									enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
@@ -548,36 +575,29 @@ try:
 										    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
 									chat_dict = pickle.dumps(chat_dict)
 									client_socket.sendto(chat_dict,
-				                                                          client_addr)
+					                                                  client_addr)
 									prompt()
-							else:
-								client_shared_key = client_logged_list[client_addr]
-								# Encrypting the chat
-								client_iv = os.urandom(16)							
-								enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
-								chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
-									    'chat_tag': c_tag, 'chat_message': enc_chat, 'from':username}
-								chat_dict = pickle.dumps(chat_dict)
-								client_socket.sendto(chat_dict,
-			                                                          client_addr)
-								prompt()
 							
-						except NameError:
-							pass
+							except NameError:
+								pass
 						
-					except IndexError:
-						print "+> Incorrect send format, please try again."
-						prompt()					
+						except IndexError:
+							print "+> Incorrect send format, please try again."
+							prompt()					
 
-				# Request from server list of users logged in to chat
-				elif user_input == "list":
-					logged_list = sendToServer(user_input, client_socket, username, server_addr)
-					prompt()
+					# Request from server list of users logged in to chat
+					elif user_input == "list":
+						logged_list = sendToServer(user_input, client_socket, username, server_addr)
+						prompt()
 
-				# Handle invalid chat commands
-				else:
-					print "+> Command not supported, please try again."
-					prompt()
+					# Handle invalid chat commands
+					else:
+						print "+> Command not supported, please try again."
+						prompt()
+
+				except:
+					client_socket.close()
+					sys.exit("\n <o> ERROR, please restart program!")
 
 # Handle keyboard interrup, notify server and exit from chat gracefully
 except KeyboardInterrupt:

@@ -2,20 +2,19 @@
 
 '''
 
-Author: Suraj Bhatia
+Author: Soumya Mohanty
+	Suraj Bhatia
 
-Title: ChatServer.py
+Title: server.py
 
-Description: Server side program for instant chat using UDP sockets in Python
+Description: Server side program for secure instant chat in Python
 
-Usage: python server.py -sp server-port
+Usage: python server.py -s keyGen/serverPublicKey.der keyGen/serverPrivateKey.der -p $PORT
 
 '''
 
 from socket import *
 import argparse
-import sys
-import zmq
 import sys
 import time
 import base64
@@ -30,18 +29,6 @@ import random
 import ast
 from cryptography.hazmat.primitives import serialization
 
-sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/keyGen')
-sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/protobuf')
-
-from fcrypt import AESEncryption
-from fcrypt import AESDecryption
-from fcrypt import RSAEncryption
-from fcrypt import RSADecryption
-from fcrypt import messageSigning
-from fcrypt import messageVerification
-from fcrypt import loadRSAPublicKey
-from fcrypt import loadRSAPrivateKey
-from fcrypt import dh_keygen
 from fcrypt import *
 
 def clientAuthentication(socket, addr, R1):
@@ -100,11 +87,10 @@ def clientAuthentication(socket, addr, R1):
 		
 		try:
 			if RSADecryption(serverPriKey, thirdMessage[0]) == 'TERMINATE':
-				print "Terminate mesasge"
+				print "Terminating connection."
 				return
 
 		except ValueError:
-			print "NO TERMINATE"
 			pass
 	
 		thirdMessage = thirdMessage[0].split("delimiter")		
@@ -185,61 +171,14 @@ def password_authenticate(uname, password):
 		for line in open("serverConf.conf","r").readlines(): # Read the lines
 			login_info = line.split(':') # Split on the space, and store the results in a list of two strings
 			if uname == login_info[0] and password == login_info[1][:-1]:
-				print 'Authentication Sucessfull!!!'                
+				print 'Authentication Sucessfull.'                
 				return True
 		print 'Incorrect credentials.'
 		return False
 
 		
 
-def signIn(serverSocket, userDatabase, message, address):
 
-	# Receieve username after sign-in
-	if message.split()[0] == "SIGN-IN":
-		username = message.split()[1]
-
-	# Check for duplicate user, add new USER to database
-		if username not in userDatabase:
-			userDatabase[username] = address
-		else:
-			serverSocket.sendto("User "+username+" already exists", address)
-
-	# Handle user exit and remove from logged-in database
-	if message == "exit":
-		for key, value in userDatabase.items():
-			if value == address:
-				del userDatabase[key]
-
-	userList = ', '.join(userDatabase.iterkeys())
-
-	return userList, userDatabase
-
-
-def sendMessage(serverSocket, userDatabase, message, address):
-
-	# Extracting sender name
-	for key, value in userDatabase.items():
-		if value == address:
-			sender = key
-
-	# Extracting receiver name, handling error for no RECEIVER given
-	try:
-		receiver = message.split()[1]
-	except IndexError:
-		serverSocket.sendto("Please specify receiver!", address)
-		return
-
-	# Extracting actual message to be sent
-		m = (' '.join(message.split(' ')[2:]))
-
-	# Send receiever information to sender
-	for key, value in userDatabase.items():
-		if key == receiver:
-			serverSocket.sendto("Send "+str(value[0])+" "+str(value[1]), address)
-			return
-
-	# Check for user not logged into chat
-	serverSocket.sendto("No such user logged in, try again.", address)
 
 
 def createSocket(serverPort):
@@ -282,7 +221,7 @@ args = parser.parse_args()
 serverPubKey = loadRSAPublicKey(args.s[0], "der")
 serverPriKey = loadRSAPrivateKey(args.s[1], "der")
 
-# Parse command line arguments for server port number
+
 
 # Create server socket
 serverSocket = createSocket(args.server_port)
@@ -296,7 +235,7 @@ username_list = []
 
 try:
 	while True:
-		print 'Server Listening'
+		print 'Server Listening ...'
 		# Wait for messages to be received infinitely. handle accordingly
 		message, addr = serverSocket.recvfrom(65535)
 		try:
@@ -335,14 +274,6 @@ try:
 				message = AESDecryption(shared_key, iv, tag, message['message'])
 		except:
 			pass
-		'''
-		except ValueError as e:
-			print e
-		except TypeError as e:
-			print e
-		except KeyError as e:
-			print e
-		'''
 
 		try:
 			message = ast.literal_eval(message)
@@ -356,7 +287,7 @@ try:
 			username = message['user']
 
 			if username in username_list:
-				print "username already in use"
+				print "Username already in use."
 			else: 
 				try:	
 					login_status, token_id, client_pub_key_file, shared_key, u_name = clientAuthentication(serverSocket, addr, message['random'])
@@ -371,8 +302,6 @@ try:
 						logged_users[addr] = [username, u_name, client_pub_key_file, token_id, shared_key]
 
 						logged_list[username] =  [client_pub_key_file, addr]
-						
-						print "LOGGED LIST"+str(logged_list)
 			
 						print ("Registering %s" % (username))
 
@@ -381,8 +310,7 @@ try:
 							if logged_users[key][0] not in username_list: 
 								username_list.append(logged_users[key][0])
 
-						print username_list
-
+						
 				except TypeError:
 					pass
 
@@ -416,11 +344,7 @@ try:
 			else: 
 				serverSocket.sendto('PASS', addr)
 
-		if message['message'] == "send":
-			sendMessage(serverSocket, userDatabase, message, address)
-
 		if message['message'] == "LOGOFF":
-			print "START LOGOFF process"
 			if addr in logged_users:
 				#Remove uname form uname_in_use
 				u_name = logged_users[addr][1]

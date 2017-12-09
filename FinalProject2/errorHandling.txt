@@ -1,7 +1,6 @@
 
-Pem and der keys
 
-list timeout
+
 
 
 server debug messages
