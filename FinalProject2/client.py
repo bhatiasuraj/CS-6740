@@ -490,7 +490,7 @@ try:
 							logged_list = AESDecryption(server_shared_key, data['iv'], data['tag'], data['info'])
 							logged_list = ast.literal_eval(logged_list)
 						except:
-							continue
+							continue	
 
 			else:
 				# Take input from user
