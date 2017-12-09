@@ -55,7 +55,7 @@ Steps to follow to run program -
 		
 	3. python client.py -u $USERNAME -sip server-ip -sp server-port  						==> Run client program
 	
-		OR ./client.py -u $USERNAME -c keyGen/$UNAMEPublicKey.der keyGen/$UNAMEPrivateKey.der -skey keyGen/serverPublicKey.der keyGen/serverPrivateKey.der -p $PORT
+		OR ./client.py -u $USERNAME -c keyGen/$UNAMEPublicKey.der keyGen/$UNAMEPrivateKey.der -skey keyGen/serverPublicKey.der -p $PORT
 
 It is necessary to run both the scripts with the correct command-line arguments. For any help regarding the arguments, use the following two options -
 

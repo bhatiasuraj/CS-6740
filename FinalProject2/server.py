@@ -443,7 +443,13 @@ try:
 
 				print logoff_info['username']+" has logged off"
 
-				print username_list
+				for addr in logged_users:
+		
+					update_iv = os.urandom(16)
+					update_cipher, update_tag = AESEncryption(logged_users[addr][-1], update_iv, str(logged_list))
+					update_message = {'message':'UPDATE', 'info':update_cipher, 'tag':update_tag, 'iv':update_iv}
+					update_message = pickle.dumps(update_message)
+					serverSocket.sendto(update_message, addr)
 
 		if message['message'] == "CLIENT DOWN":
 						
@@ -460,7 +466,13 @@ try:
 					del logged_list[logged_users[addr][0]]
 					del logged_users[addr]
 
-				print username_list
+				for addr in logged_users:
+		
+					update_iv = os.urandom(16)
+					update_cipher, update_tag = AESEncryption(logged_users[addr][-1], update_iv, str(logged_list))
+					update_message = {'message':'UPDATE', 'info':update_cipher, 'tag':update_tag, 'iv':update_iv}
+					update_message = pickle.dumps(update_message)
+					serverSocket.sendto(update_message, addr)
 					
 
 	serverSocket.close()

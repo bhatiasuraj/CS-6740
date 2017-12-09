@@ -2,13 +2,14 @@
 
 '''
 
-Author: Suraj Bhatia
+Author: Soumya Mohanty
+	Suraj Bhatia
 
-Title: ChatClient.py
+Title: client.py
 
-Description: Client side program for instant chat using UDP sockets in Python
+Description: Client side program for secure instant chat in Python
 
-Usage: python client.py -u USERNAME -sip server-ip -sp server-port
+Usage: python client.py -u $USERNAME -c keyGen/$UNAMEPublicKey.der keyGen/$UNAMEPrivateKey.der -skey keyGen/serverPublicKey.der -p $PORT 
 
 '''
 
@@ -28,25 +29,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 import ast
 
-sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/keyGen')
-sys.path.insert(0, '/home/sbhatia/git/CS-6740/FinalProject/protobuf')
-
-from fcrypt import AESEncryption
-from fcrypt import AESDecryption
-from fcrypt import RSAEncryption
-from fcrypt import RSADecryption
-from fcrypt import messageSigning
-from fcrypt import messageVerification
-from fcrypt import loadRSAPublicKey
-from fcrypt import loadRSAPrivateKey
-from fcrypt import dh_keygen
 from fcrypt import *
 
-global logged_list
-logged_list = dict()
-server_iv  = ''
 
-client_logged_list = dict()
 
 def prompt():
 
@@ -101,10 +86,10 @@ def serverAuthentication(addr, socket):
 	challenge = RSADecryption(sendPriKey, challenge_dict['challenge'])		
 	challenge_R2 = RSADecryption(sendPriKey, challenge_dict['random'])
 
-	#incrementing R2
+	# incrementing R2
 	R2 = int(R2)+1
 
-	#Check if R2 is incremented
+	# Check if R2 is incremented
 	if not R2 == int(challenge_R2):
 		sys.exit("Random number doesnt match") 
 	
@@ -124,35 +109,35 @@ def serverAuthentication(addr, socket):
 			socket.close()
 			sys.exit("Forced quit!")			
 
-		#Hashing the password
+		# Hashing the password
 		pass_digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
 		pass_digest.update(password)
 		password = pass_digest.finalize()
 		password = base64.b64encode(password)
 
-		#finding answer of the challenge
+		# finding answer of the challenge
 		challenge_ans = break_hash(challenge)
 
-		#Incrementing the random number
+		# Incrementing the random number
 		R2 = int(R2)+1
 
 		# Create DH keys
 
 		dh_private_key, dh_public_key = dh_keygen()
 
-		#Create the message dictionary
+		# Create the message dictionary
 		thirdMessage = {"challenge_ans":challenge_ans, "random":R2, "uname" : uname, "password": password, 'dh_key': dh_public_key}
 
 		thirdMessage = cPickle.dumps(thirdMessage)
-		#Encrypt the message and sign it then send
+		# Encrypt the message and sign it then send
 
 		thirdMessage = RSAEncryption(serverPubKey, thirdMessage)
 		thirdHash = messageSigning(sendPriKey,thirdMessage)
 
-		#Send challenge_and, uname, password to the server for authentication
+		# Send challenge_and, uname, password to the server for authentication
 		socket.sendto(str(thirdMessage)+"delimiter"+thirdHash, addr)
 
-		#Receive message and see if server auth success or not 
+		# Receive message and see if server auth success or not 
 		auth_msg = socket.recvfrom(65536)	
 
 		try:
@@ -182,7 +167,7 @@ def serverAuthentication(addr, socket):
 			print 'o> Authentication Successful'
 			auth_status = 'pass'	
 		
-			#Receive TokenId
+			# Receive TokenId
 			token_id = auth_msg_dict['token_id']
 
 			server_dh_public_key = auth_msg[0].split("delimiter")[1]
@@ -213,7 +198,7 @@ def c2c_auth(client_addr, dest_pub_key):
 
 	enc_pk2 = RSAEncryption(dest_pub_key, pk2)
 	
-	#Dict with R1, token_hash and username
+	# Dict with R1, token_hash and username
 	R1 = randint(0,999)
 	client_info = {'username':username, 'token_hash':token_hash, 'random':R1}
 
@@ -228,19 +213,19 @@ def c2c_auth(client_addr, dest_pub_key):
 	DH_message = client_socket.recv(65535)
 	DH_message = pickle.loads(DH_message)
 
-	#Extracting random number from  encrypted DH_message
+	# Extracting random number from  encrypted DH_message
 	random_num =RSADecryption(sendPriKey, DH_message['random'])
 	
-	#Check if extracted R1 is incremented
+	# Check if extracted R1 is incremented
 	R1 += 1  #Incrementing original R1
 	
 	if not str(R1) == str(random_num):
 			sys.exit("Random number doesnt match")
 	
-	#Decrypting the DH_public key
+	# Decrypting the DH_public key
 	DH_client_pub_key = RSADecryption(sendPriKey, DH_message['key'])
 
-	#Send DH_contribution to client
+	# Send DH_contribution to client
 	CipherKey = RSAEncryption(dest_pub_key, dh_public_key)
 	R1 += 1 #increment befor sending
 	CipherNum = RSAEncryption(dest_pub_key, str(R1))
@@ -248,10 +233,10 @@ def c2c_auth(client_addr, dest_pub_key):
 	DH_message = pickle.dumps(DH_message)
 	client_socket.sendto(DH_message, client_addr) 
 
-	#Generate DH shared key
+	# Generate DH shared key
 	client_shared_key = dh_shared_keygen(dh_private_key,DH_client_pub_key)
 	
-	#Check if shared key was generated and change status 
+	# Check if shared key was generated and change status 
 	if not client_shared_key == None: 
 		status = 'REGISTERED'
 		return status, client_shared_key
@@ -260,7 +245,7 @@ def c2c_auth(client_addr, dest_pub_key):
 
 
 
-#Function used to bruteforce and find answer of the challenge
+# Function used to bruteforce and find answer of the challenge
 def break_hash(challenge_hash):
 		
 	for num in range(1,1000000):
@@ -275,24 +260,6 @@ def break_hash(challenge_hash):
 
 
 def sendToServer(message, socket, username, addr):
-
-	# User SIGN-IN and send USERNAME to server
-	if message == "SIGN-IN":
-		try :
-			socket.sendto("SIGN-IN "+username, addr)
-
-		except error, msg:
-			print 'Error Code : ' + str(msg)
-			sys.exit()
-
-	# For send command, request receiver information from server
-	if message.split()[0] == "send":
-		try :
-			socket.sendto(message, addr)
-
-		except error, msg:
-			print 'Error Code : ' + str(msg)
-			sys.exit()
 
 	# Retrieve list of users connected to chat from server
 	if message == "list":
@@ -336,15 +303,6 @@ def sendToServer(message, socket, username, addr):
 			print 'Error Code : ' + str(msg)
 			sys.exit()
 
-	# Inform server that client is leaving chat
-	if message == "exit":
-		try :
-			socket.sendto(message, addr)
-
-		except error, msg:
-			print 'Error Code : ' + str(msg)
-			sys.exit()
-
 def createSocket():
 
 	# Create socket and handle failure
@@ -356,20 +314,6 @@ def createSocket():
 		sys.exit(0)
 
 	return clientSocket
-
-def argsParser():
-
-	# Command-line arguments parser
-	parser = argparse.ArgumentParser()
-
-	parser.add_argument("-u", help="USERNAME", required=True)
-	parser.add_argument("-sip", help="server-ip", required=True)
-	parser.add_argument("-sp", help="port", type=int, required=True)
-
-	args = parser.parse_args()
-
-	return args.u, args.sp, args.sip
-
 
 
 parser = argparse.ArgumentParser()
@@ -396,17 +340,11 @@ parser.add_argument("-skey", nargs='+',
 
 args = parser.parse_args()
 
-sendPriKey = loadRSAPrivateKey(args.c[1], "der")
-
-sendPriKey = args.c[0]
-
 username = args.user
 
 sendPriKey = loadRSAPrivateKey(args.c[1], "der")
 
 senderPubKeyFile = args.c[0]
-
-#sendPubKey = loadRSAPublicKey(args.c[0], "der")
 
 serverPubKey = loadRSAPublicKey(args.skey[0], "der")
 
@@ -417,10 +355,17 @@ server_addr = (args.server, args.server_port)
 # Create client UDP socket
 client_socket = createSocket()
 
+
+logged_list = dict()
+server_iv  = ''
+
+client_logged_list = dict()
+
 # Send SIGN-IN message to server after socket creation
 token_id, server_shared_key, dh_private_key, dh_public_key = serverAuthentication(server_addr, client_socket)
 
 prompt()
+
 
 
 try:
@@ -470,7 +415,7 @@ try:
 						dec_pk1 = RSADecryption(sendPriKey, data['pk1'])
 						dec_pk2 = RSADecryption(sendPriKey, data['pk2'])
 						 
-						#Sending tokenid to server for verificaation
+						# Sending tokenid to server for verificaation
 						new_iv = os.urandom(16)
 						status_info, e_tag = AESEncryption(server_shared_key, new_iv, dec_info)
 						token_verify_msg = {'message': 'CHECKTID', 'info':status_info, 'tag': e_tag, 'iv': new_iv}
@@ -483,10 +428,10 @@ try:
 							R1 = dec_info['random']
 							token_hash = dec_info['token_hash']
 							dest_username =  dec_info['username']
-							#Recreating the client_public_key of destination
+							# Recreating the client_public_key of destination
 							dest_publicKeyFile = dec_pk1+dec_pk2
 
-							#Start diffie Hellman exchange
+							# Start diffie Hellman exchange
 							R1 += 1
 							dest_publicKeyFile =serialization.load_der_public_key(dest_publicKeyFile,
 												 backend=default_backend())
@@ -498,21 +443,21 @@ try:
 							DH_peer_message = client_socket.recv(65535) 
 							DH_peer_message = pickle.loads(DH_peer_message)
 
-							#Extracting random number from  encrypted DH_message
+							# Extracting random number from  encrypted DH_message
 							random_num =RSADecryption(sendPriKey, DH_peer_message['random'])
 							 
-							#Check if extracted R1 is incremented
+							# Check if extracted R1 is incremented
 							R1 += 1  #Incrementing original R1
 							if not str(R1) == str(random_num):
 									sys.exit("Random number doesnt match")
 	
-							#Decrypting the DH_public key
+							# Decrypting the DH_public key
 							DH_peer_pub_key = RSADecryption(sendPriKey, DH_peer_message['key'])
 
-							#Generate DH shared key
+							# Generate DH shared key
 							client_shared_key = dh_shared_keygen(dh_private_key,DH_peer_pub_key)
 							
-							#Add shared key to key dict
+							# Add shared key to key dict
 							client_logged_list[addr] = client_shared_key 
 						else:
 							print "Failed"
@@ -538,46 +483,15 @@ try:
 							continue
 	
 						if down_info == "Server Down":
-							print "\n<o> Server down, logging off!"
-							client_socket.close()
-							sys.exit(0)	
+							print "\n<o> Server down, continue chatting with listed peers."	
 
-					'''
-					# Retrieve receiver information from server to send message directly
-					if data.split()[0] == "Send":
-						receiverIp = data.split()[1]
-						receiverPort = int(data.split()[2])
-						receiver = (receiverIp, receiverPort)
-
+					if data['message'] == "UPDATE":
 						try:
-							# Get actual message from send command
-							m = message.split()[2]
-							m = (' '.join(message.split(' ')[2:]))
+							logged_list = AESDecryption(server_shared_key, data['iv'], data['tag'], data['info'])
+							logged_list = ast.literal_eval(logged_list)
+						except:
+							continue
 
-							# Handle socket receiver buffer overflow
-							if len(str(m)) <= 65494:
-								client_socket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+str(m)), receiver)
-
-							# Send in chunks if total message larger > 65535
-							else:
-								client_socket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[0:65494]), receiver)
-								client_socket.sendto(str("<From "+str(ip)+":"+str(port)+":"+username+">: "+m[65494:]), receiver)
-
-						# Do not send empty messages
-						except IndexError:
-							print "\n<- Please enter some message!"
-
-					# Handle duplicate user log-in and exit
-					elif data == "User "+username+" already exists.":
-						sys.stdout.write('\n<- '+data+'\n')
-						sys.exit()
-
-					# Display any other legitimate messages from other users
-					else:
-						sys.stdout.write('\n<- '+data+'\n')
-
-					'''
-					#prompt()
 			else:
 				# Take input from user
 				user_input = raw_input()
@@ -597,8 +511,6 @@ try:
 
 					client_socket.sendto(cipher_exit_msg, server_addr)
 
-					# result = client_socket.recv(65535)
-
 				# Blank command goes to next line
 				elif user_input =="":
 					prompt()
@@ -606,7 +518,7 @@ try:
 				# Check for message format
 				elif user_input.split()[0] == "send":
 					try:
-						#Extract username and message 
+						# Extract username and message 
 						dest_client = user_input.split()[1]
 						input_as_list = user_input.split()
 						chat_message = " ".join(input_as_list[2:]) 
@@ -617,20 +529,19 @@ try:
 
 						else:
 							print dest_client+" not logged in! Try refreshing with list."
-							prompt()
 
 						try:
 							if client_addr not in client_logged_list:
 
 								status, client_shared_key = c2c_auth(client_addr, dest_pub_key)
-								#Do status check
+								# Do status check
 								if not status == 'REGISTERED':
 									print 'Peer authentication failed. Please try again'
 								else:
 									
 									client_logged_list[client_addr] = client_shared_key 
 
-									#Encrypting the chat
+									# Encrypting the chat
 									client_iv = os.urandom(16)							
 									enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
 									chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
@@ -641,7 +552,7 @@ try:
 									prompt()
 							else:
 								client_shared_key = client_logged_list[client_addr]
-								#Encrypting the chat
+								# Encrypting the chat
 								client_iv = os.urandom(16)							
 								enc_chat, c_tag = AESEncryption(client_shared_key, client_iv, chat_message)
 								chat_dict = {'message': 'CHAT', 'chat_iv':client_iv, 
@@ -653,14 +564,10 @@ try:
 							
 						except NameError:
 							pass
-						#client_socket.sendto(user_input.split(" ")[2], client_addr)
-
+						
 					except IndexError:
 						print "+> Incorrect send format, please try again."
-						prompt()
-				
-
-					
+						prompt()					
 
 				# Request from server list of users logged in to chat
 				elif user_input == "list":
