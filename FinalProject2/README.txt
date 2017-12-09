@@ -5,9 +5,9 @@ Author: Soumya Mohanty
 
 Files: server.py
        client.py
-       fcrypt.py
-       keygen/
-       serverConf.conf
+       fcrypt.py   	======> Holds all encryption/decryption functions
+       keygen/	   	======> Holds script to generate new keys for clients and store all keys
+       serverConf.conf  ======> Password verification file for server
        Makefile
 	   
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------	   
@@ -53,11 +53,21 @@ Steps to follow to run program -
 	
 		OR ./server.py -s keyGen/serverPublicKey.der keyGen/serverPrivateKey.der -p $PORT
 		
-	3. python client.py -u $USERNAME -sip server-ip -sp server-port  						==> Run client program
+	3. python client.py -u $USERNAME -c keyGen/$UNAMEPublicKey.der keyGen/$UNAMEPrivateKey.der -skey keyGen/serverPublicKey.der -p $PORT -s $SERVER_IP  	==> Run client program
 	
-		OR ./client.py -u $USERNAME -c keyGen/$UNAMEPublicKey.der keyGen/$UNAMEPrivateKey.der -skey keyGen/serverPublicKey.der -p $PORT
+		OR ./client.py -u $USERNAME -c keyGen/$UNAMEPublicKey.der keyGen/$UNAMEPrivateKey.der -skey keyGen/serverPublicKey.der -p $PORT -s $SERVER_IP
 
 It is necessary to run both the scripts with the correct command-line arguments. For any help regarding the arguments, use the following two options -
 
 	1. ./server.py -h
 	2. ./client.py -h 
+
+
+C. USER NAME AND PASSWORDS
+
+	suraj:  surajIsAdmin12!
+	rounak: StrongPassword@
+	alice:  alice!sbeautiful
+	bob:    bob#3sons
+	nslab:  nslabcs6740
+
